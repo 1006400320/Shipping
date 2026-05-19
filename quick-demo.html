@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>发货工作台</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --blue: #2563eb;
+      --green: #0f8f62;
+      --red: #c03221;
+      --amber: #b7791f;
+      --sidebar: #182230;
+      --sidebar-active: #243244;
+      --soft-blue: #e8f0ff;
+      --soft-green: #e8f7ef;
+      --soft-red: #ffe9e5;
+      --soft-amber: #fff4dc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid rgb(37 99 235 / 20%);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--sidebar);
+      color: #d7dee8;
+      padding: 18px 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 42px;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--blue);
+      font-size: 13px;
+    }
+
+    .nav-title {
+      margin: 24px 6px 8px;
+      color: #8b98aa;
+      font-size: 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 38px;
+      margin-bottom: 4px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+
+    .nav-item.active {
+      background: var(--sidebar-active);
+      color: #fff;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 60px;
+      padding: 12px 22px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .title-stack {
+      min-width: 0;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .crumb,
+    .sub,
+    .note,
+    .metric-label,
+    .time,
+    .small {
+      color: var(--muted);
+    }
+
+    .crumb {
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 0 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .danger {
+      color: var(--red);
+    }
+
+    .content {
+      padding: 18px 22px 24px;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 10px 24px rgb(17 24 39 / 7%);
+    }
+
+    .list-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      padding: 16px;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) 160px 160px auto;
+      gap: 10px;
+      align-items: center;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      width: 100%;
+      height: 38px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 11px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      height: 44px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    tbody tr.clickable {
+      cursor: pointer;
+    }
+
+    tbody tr.clickable:hover {
+      background: #f8fbff;
+    }
+
+    .empty {
+      display: none;
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status.todo {
+      background: #edf2f7;
+      color: #435266;
+    }
+
+    .status.running {
+      background: var(--soft-blue);
+      color: var(--blue);
+    }
+
+    .status.blocked {
+      background: var(--soft-amber);
+      color: var(--amber);
+    }
+
+    .status.done {
+      background: var(--soft-green);
+      color: var(--green);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.5fr) repeat(3, minmax(150px, .8fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .hero,
+    .scan,
+    .side {
+      padding: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .sub {
+      margin: 8px 0 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: #edf2f7;
+      color: #435266;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tag.green {
+      background: var(--soft-green);
+      color: var(--green);
+    }
+
+    .tag.amber {
+      background: var(--soft-amber);
+      color: var(--amber);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(96px, 1fr));
+      gap: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .step {
+      min-height: 58px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fbfcfe;
+      font-size: 13px;
+    }
+
+    .step.done {
+      border-color: #b7e1cb;
+      background: var(--soft-green);
+    }
+
+    .step.current {
+      border-color: #7aa7ff;
+      background: var(--soft-blue);
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .scan-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 108px;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .scan-input {
+      width: 100%;
+      height: 46px;
+      min-width: 0;
+      padding: 0 14px;
+      border: 2px solid var(--blue);
+      border-radius: 8px;
+      outline: none;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .bar {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #edf2f7;
+    }
+
+    .bar span {
+      display: block;
+      width: 90%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+    }
+
+    .alert {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border-radius: 7px;
+      background: var(--soft-red);
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .alert.success {
+      background: var(--soft-green);
+      color: var(--green);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .ok {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .warn {
+      color: var(--amber);
+      font-weight: 800;
+    }
+
+    @media (max-width: 1080px) {
+      .shell,
+      .detail-grid,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .list-metrics {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .flow {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .content {
+        padding: 12px;
+      }
+
+      .list-metrics,
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .scan-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="mark">LS</span><span>物流过程管控</span></div>
+      <div class="nav-title">作业中心</div>
+      <button class="nav-item active" type="button" id="navWorkbench">发货工作台</button>
+      <button class="nav-item" type="button">扫码拣配</button>
+      <button class="nav-item" type="button">扫码封箱</button>
+      <div class="nav-title">物流费用</div>
+      <button class="nav-item" type="button">物流单号</button>
+      <button class="nav-item" type="button">对账核价</button>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div class="title-stack">
+          <h1 class="page-title" id="pageTitle">发货工作台</h1>
+          <div class="crumb" id="breadcrumb">发货管理 / 发货工作台</div>
+        </div>
+        <div class="actions" id="topActions">
+          <button class="btn" type="button">导出</button>
+          <button class="btn primary" type="button">新建发货单</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <section class="view active" id="listView">
+          <section class="list-metrics">
+            <article class="panel metric">
+              <div class="metric-label">今日发货单</div>
+              <div class="metric-value">16</div>
+              <div class="note">6 单待处理</div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">封箱中</div>
+              <div class="metric-value">5</div>
+              <div class="note">含 1 单异常</div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">待发厂确认</div>
+              <div class="metric-value">3</div>
+              <div class="note">大件需补 DNA</div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">已完成</div>
+              <div class="metric-value">8</div>
+              <div class="note">已进入物流跟踪</div>
+            </article>
+          </section>
+
+          <section class="panel toolbar">
+            <input id="searchInput" type="search" placeholder="发货单号 / 客户 / 收货城市">
+            <select id="statusFilter" aria-label="状态筛选">
+              <option value="all">全部状态</option>
+              <option value="running">作业中</option>
+              <option value="blocked">异常待处理</option>
+              <option value="todo">待开始</option>
+              <option value="done">已完成</option>
+            </select>
+            <select id="ownerFilter" aria-label="负责人筛选">
+              <option value="all">全部负责人</option>
+              <option value="李明">李明</option>
+              <option value="陈欢">陈欢</option>
+              <option value="周洁">周洁</option>
+            </select>
+            <button class="btn" type="button" id="resetFilters">重置</button>
+          </section>
+
+          <section class="panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>发货单号</th>
+                    <th>客户</th>
+                    <th>收货城市</th>
+                    <th>物料进度</th>
+                    <th>箱数</th>
+                    <th>当前节点</th>
+                    <th>负责人</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="shipmentRows"></tbody>
+              </table>
+            </div>
+            <div class="empty" id="emptyState">暂无匹配发货单</div>
+          </section>
+        </section>
+
+        <section class="view" id="detailView">
+          <section class="detail-grid">
+            <article class="panel hero">
+              <h2>发货单 FH202605180001</h2>
+              <p class="sub">客户：深圳捷顺项目部 | 收货人：王工 | 当前节点：扫码封箱</p>
+              <div class="tags">
+                <span class="tag green">资料已完善</span>
+                <span class="tag green">拣配完成</span>
+                <span class="tag green">抽检通过</span>
+                <span class="tag amber">包含大件</span>
+              </div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">物料扫码进度</div>
+              <div class="metric-value" id="progressText">18 / 20</div>
+              <div class="note">剩余 2 件待装箱</div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">箱数</div>
+              <div class="metric-value">3 箱</div>
+              <div class="note">1 箱进行中</div>
+            </article>
+            <article class="panel metric">
+              <div class="metric-label">异常</div>
+              <div class="metric-value danger" id="errorCount">1</div>
+              <div class="note">重复装箱待处理</div>
+            </article>
+          </section>
+
+          <section class="panel flow">
+            <div class="step done"><strong>完善</strong><span>资料员</span></div>
+            <div class="step done"><strong>打印</strong><span>资料员</span></div>
+            <div class="step done"><strong>拣配</strong><span>包管员</span></div>
+            <div class="step done"><strong>抽检</strong><span>质量员</span></div>
+            <div class="step current"><strong>封箱</strong><span>封箱员</span></div>
+            <div class="step"><strong>发厂</strong><span>物流确认</span></div>
+          </section>
+
+          <section class="workspace">
+            <div class="panel">
+              <div class="section-head">
+                <div class="section-title">扫码封箱作业台</div>
+                <div class="note">当前箱：BOX-20260518-003</div>
+              </div>
+              <div class="scan">
+                <div class="scan-row">
+                  <input class="scan-input" id="scanInput" value="BOX-20260518-003" aria-label="扫码输入">
+                  <button class="primary" id="scanButton" type="button">扫码确认</button>
+                </div>
+                <div class="bar"><span id="progressBar"></span></div>
+                <div class="alert" id="message">扫码异常：MAT-AX009 已在 2 号箱绑定，禁止重复装箱。</div>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>物料码</th>
+                      <th>名称</th>
+                      <th>计划</th>
+                      <th>已装箱</th>
+                      <th>箱码</th>
+                      <th>状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>MAT-A1001</td>
+                      <td>通道闸机主控板</td>
+                      <td>4</td>
+                      <td>4</td>
+                      <td>BOX-001</td>
+                      <td class="ok">完成</td>
+                    </tr>
+                    <tr>
+                      <td>MAT-A2008</td>
+                      <td>闸机外壳组件</td>
+                      <td>6</td>
+                      <td>6</td>
+                      <td>BOX-002</td>
+                      <td class="ok">完成</td>
+                    </tr>
+                    <tr>
+                      <td>MAT-L3002</td>
+                      <td>大件立柱组件</td>
+                      <td>8</td>
+                      <td id="packedCount">6</td>
+                      <td>BOX-003</td>
+                      <td class="warn" id="rowStatus">待补扫</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <aside class="panel side">
+              <div class="section-title">操作痕迹</div>
+              <div class="timeline" id="timeline">
+                <div class="event">
+                  <span class="time">10:42:18</span>
+                  <div><strong class="danger">封箱扫码失败</strong><div class="small">MAT-AX009 重复装箱</div></div>
+                </div>
+                <div class="event">
+                  <span class="time">10:41:55</span>
+                  <div><strong>箱码绑定成功</strong><div class="small">BOX-20260518-003</div></div>
+                </div>
+              </div>
+            </aside>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const shipments = [
+      {
+        id: "FH202605180001",
+        customer: "深圳捷顺项目部",
+        city: "深圳",
+        progress: "18 / 20",
+        boxes: "3 箱",
+        node: "扫码封箱",
+        owner: "李明",
+        status: "blocked",
+        statusText: "异常待处理"
+      },
+      {
+        id: "FH202605180002",
+        customer: "广州城轨运营中心",
+        city: "广州",
+        progress: "12 / 12",
+        boxes: "2 箱",
+        node: "发厂确认",
+        owner: "陈欢",
+        status: "running",
+        statusText: "作业中"
+      },
+      {
+        id: "FH202605180003",
+        customer: "珠海口岸项目部",
+        city: "珠海",
+        progress: "0 / 16",
+        boxes: "0 箱",
+        node: "待拣配",
+        owner: "周洁",
+        status: "todo",
+        statusText: "待开始"
+      },
+      {
+        id: "FH202605180004",
+        customer: "佛山交通枢纽",
+        city: "佛山",
+        progress: "24 / 24",
+        boxes: "4 箱",
+        node: "物流跟踪",
+        owner: "李明",
+        status: "done",
+        statusText: "已完成"
+      },
+      {
+        id: "FH202605180005",
+        customer: "东莞园区闸机改造",
+        city: "东莞",
+        progress: "7 / 10",
+        boxes: "1 箱",
+        node: "扫码封箱",
+        owner: "陈欢",
+        status: "running",
+        statusText: "作业中"
+      }
+    ];
+
+    const listView = document.getElementById("listView");
+    const detailView = document.getElementById("detailView");
+    const pageTitle = document.getElementById("pageTitle");
+    const breadcrumb = document.getElementById("breadcrumb");
+    const topActions = document.getElementById("topActions");
+    const shipmentRows = document.getElementById("shipmentRows");
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+    const ownerFilter = document.getElementById("ownerFilter");
+    const resetFilters = document.getElementById("resetFilters");
+    const emptyState = document.getElementById("emptyState");
+    const navWorkbench = document.getElementById("navWorkbench");
+    const input = document.getElementById("scanInput");
+    const button = document.getElementById("scanButton");
+    const message = document.getElementById("message");
+    const timeline = document.getElementById("timeline");
+    const packedCount = document.getElementById("packedCount");
+    const rowStatus = document.getElementById("rowStatus");
+    const progressText = document.getElementById("progressText");
+    const progressBar = document.getElementById("progressBar");
+    const errorCount = document.getElementById("errorCount");
+
+    function routeToList() {
+      if (location.hash !== "#list") {
+        location.hash = "list";
+        return;
+      }
+      renderRoute();
+    }
+
+    function routeToDetail(id) {
+      location.hash = `workbench/${id}`;
+    }
+
+    function setTopbarForList() {
+      pageTitle.textContent = "发货工作台";
+      breadcrumb.textContent = "发货管理 / 发货工作台";
+      topActions.innerHTML = `
+        <button class="btn" type="button">导出</button>
+        <button class="btn primary" type="button">新建发货单</button>
+      `;
+    }
+
+    function setTopbarForDetail() {
+      pageTitle.textContent = "发货单 FH202605180001";
+      breadcrumb.textContent = "发货管理 / 发货工作台 / FH202605180001";
+      topActions.innerHTML = `
+        <button class="btn" type="button" id="backToList">返回列表</button>
+        <button class="btn" type="button">打印备料单</button>
+        <button class="btn" type="button">打印封箱单</button>
+        <button class="btn danger" type="button">作废申请</button>
+        <button class="btn primary" type="button">确认当前节点</button>
+      `;
+      document.getElementById("backToList").addEventListener("click", routeToList);
+    }
+
+    function renderRoute() {
+      const isDetail = location.hash.startsWith("#workbench/");
+      listView.classList.toggle("active", !isDetail);
+      detailView.classList.toggle("active", isDetail);
+
+      if (isDetail) {
+        setTopbarForDetail();
+        input.focus();
+        input.select();
+        return;
+      }
+
+      setTopbarForList();
+      renderShipmentRows();
+    }
+
+    function renderShipmentRows() {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const status = statusFilter.value;
+      const owner = ownerFilter.value;
+      const rows = shipments.filter((item) => {
+        const matchedKeyword = !keyword || `${item.id} ${item.customer} ${item.city}`.toLowerCase().includes(keyword);
+        const matchedStatus = status === "all" || item.status === status;
+        const matchedOwner = owner === "all" || item.owner === owner;
+        return matchedKeyword && matchedStatus && matchedOwner;
+      });
+
+      shipmentRows.innerHTML = rows.map((item) => `
+        <tr class="clickable" data-id="${item.id}">
+          <td>${item.id}</td>
+          <td>${item.customer}</td>
+          <td>${item.city}</td>
+          <td>${item.progress}</td>
+          <td>${item.boxes}</td>
+          <td>${item.node}</td>
+          <td>${item.owner}</td>
+          <td><span class="status ${item.status}">${item.statusText}</span></td>
+          <td><button class="btn open-detail" type="button" data-id="${item.id}">进入作业台</button></td>
+        </tr>
+      `).join("");
+      emptyState.style.display = rows.length ? "none" : "block";
+    }
+
+    function now() {
+      return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+    }
+
+    function addEvent(title, note, tone) {
+      const node = document.createElement("div");
+      node.className = "event";
+      node.innerHTML = `<span class="time">${now()}</span><div><strong class="${tone || ""}">${title}</strong><div class="small">${note}</div></div>`;
+      timeline.prepend(node);
+    }
+
+    function submitScan() {
+      const code = input.value.trim();
+      if (!code) {
+        message.className = "alert";
+        message.textContent = "扫码内容为空，请重新扫描。";
+        input.focus();
+        return;
+      }
+
+      if (code === "MAT-L3002") {
+        packedCount.textContent = "8";
+        rowStatus.textContent = "完成";
+        rowStatus.className = "ok";
+        progressText.textContent = "20 / 20";
+        progressBar.style.width = "100%";
+        errorCount.textContent = "0";
+        message.className = "alert success";
+        message.textContent = "扫码成功：MAT-L3002 已装入 BOX-20260518-003。";
+        addEvent("物料装箱成功", `${code} 已绑定当前箱`, "ok");
+      } else {
+        message.className = "alert";
+        message.textContent = `扫码异常：${code} 不属于当前待补扫清单或已绑定其他箱。`;
+        addEvent("封箱扫码失败", `${code} 校验未通过`, "danger");
+      }
+
+      input.select();
+    }
+
+    shipmentRows.addEventListener("click", (event) => {
+      const buttonTarget = event.target.closest(".open-detail");
+      const rowTarget = event.target.closest("tr[data-id]");
+      const id = buttonTarget?.dataset.id || rowTarget?.dataset.id;
+      if (id) {
+        routeToDetail(id);
+      }
+    });
+    searchInput.addEventListener("input", renderShipmentRows);
+    statusFilter.addEventListener("change", renderShipmentRows);
+    ownerFilter.addEventListener("change", renderShipmentRows);
+    resetFilters.addEventListener("click", () => {
+      searchInput.value = "";
+      statusFilter.value = "all";
+      ownerFilter.value = "all";
+      renderShipmentRows();
+    });
+    navWorkbench.addEventListener("click", routeToList);
+    button.addEventListener("click", submitScan);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        submitScan();
+      }
+    });
+    window.addEventListener("hashchange", renderRoute);
+
+    if (!location.hash) {
+      history.replaceState(null, "", "#list");
+    }
+    renderRoute();
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vite/
+.npm-cache/
+*.log
+*.pid
+.env
+.env.*
+!.env.example

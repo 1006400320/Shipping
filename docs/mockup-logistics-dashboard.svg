@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="980" viewBox="0 0 1440 980">
+  <rect width="1440" height="980" fill="#f4f6f8"/>
+  <rect x="0" y="0" width="230" height="980" fill="#17202b"/>
+  <rect x="20" y="18" width="30" height="30" rx="6" fill="#2563eb"/>
+  <text x="35" y="38" text-anchor="middle" font-size="13" fill="#fff" font-family="Microsoft YaHei, Arial">LS</text>
+  <text x="62" y="39" font-size="17" font-weight="700" fill="#fff" font-family="Microsoft YaHei, Arial">物流过程管控</text>
+  <text x="24" y="86" font-size="12" fill="#7f8da1" font-family="Microsoft YaHei, Arial">作业中心</text>
+  <rect x="14" y="100" width="202" height="38" rx="6" fill="#243244"/>
+  <text x="34" y="124" font-size="14" fill="#fff" font-family="Microsoft YaHei, Arial">发货作业台</text>
+  <text x="34" y="170" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">扫码拣配</text>
+  <text x="34" y="212" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">扫码抽检</text>
+  <text x="34" y="254" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">扫码封箱</text>
+  <text x="34" y="296" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">DNA 录入</text>
+  <text x="24" y="352" font-size="12" fill="#7f8da1" font-family="Microsoft YaHei, Arial">物流费用</text>
+  <text x="34" y="390" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">物流单号</text>
+  <text x="34" y="432" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">对账核价</text>
+  <text x="34" y="474" font-size="14" fill="#cbd6e2" font-family="Microsoft YaHei, Arial">报销跟踪</text>
+
+  <rect x="230" y="0" width="1210" height="58" fill="#fff"/>
+  <line x1="230" y1="58" x2="1440" y2="58" stroke="#d9e0e7"/>
+  <text x="254" y="36" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">发货管理 / 发货作业台 / FH202605180001</text>
+  <rect x="1004" y="13" width="94" height="34" rx="6" fill="#fff" stroke="#d9e0e7"/>
+  <text x="1051" y="35" text-anchor="middle" font-size="13" fill="#1f2933" font-family="Microsoft YaHei, Arial">打印备料单</text>
+  <rect x="1108" y="13" width="94" height="34" rx="6" fill="#fff" stroke="#d9e0e7"/>
+  <text x="1155" y="35" text-anchor="middle" font-size="13" fill="#1f2933" font-family="Microsoft YaHei, Arial">打印封箱单</text>
+  <rect x="1212" y="13" width="82" height="34" rx="6" fill="#ffe9e5" stroke="#f0b7ae"/>
+  <text x="1253" y="35" text-anchor="middle" font-size="13" fill="#c03221" font-family="Microsoft YaHei, Arial">作废申请</text>
+  <rect x="1304" y="13" width="112" height="34" rx="6" fill="#2563eb"/>
+  <text x="1360" y="35" text-anchor="middle" font-size="13" fill="#fff" font-family="Microsoft YaHei, Arial">确认当前节点</text>
+
+  <rect x="252" y="76" width="520" height="122" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="272" y="112" font-size="22" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">发货单 FH202605180001</text>
+  <text x="272" y="142" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">客户：深圳捷顺项目部　收货人：王工 138****8021</text>
+  <text x="272" y="166" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">地址：广东省深圳市南山区科技园</text>
+  <rect x="638" y="95" width="102" height="28" rx="6" fill="#e8f0ff"/>
+  <text x="689" y="114" text-anchor="middle" font-size="13" fill="#2563eb" font-family="Microsoft YaHei, Arial">当前：扫码封箱</text>
+  <rect x="790" y="76" width="190" height="122" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="810" y="108" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">物料扫码进度</text>
+  <text x="810" y="150" font-size="28" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">18 / 20</text>
+  <text x="810" y="176" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">剩余 2 件待装箱</text>
+  <rect x="998" y="76" width="190" height="122" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="1018" y="108" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">箱数</text>
+  <text x="1018" y="150" font-size="28" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">3 箱</text>
+  <text x="1018" y="176" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">2 箱已封，1 箱进行中</text>
+  <rect x="1206" y="76" width="210" height="122" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="1226" y="108" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">费用状态</text>
+  <text x="1226" y="150" font-size="28" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">未对账</text>
+  <text x="1226" y="176" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">发厂后由物流公司上传</text>
+
+  <rect x="252" y="216" width="1164" height="88" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <g font-family="Microsoft YaHei, Arial" font-size="13">
+    <rect x="270" y="232" width="94" height="56" rx="7" fill="#e8f7ef" stroke="#b7e1cb"/><text x="317" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">完善</text><text x="317" y="278" text-anchor="middle" fill="#637083">资料员</text>
+    <rect x="382" y="232" width="94" height="56" rx="7" fill="#e8f7ef" stroke="#b7e1cb"/><text x="429" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">打印</text><text x="429" y="278" text-anchor="middle" fill="#637083">资料员</text>
+    <rect x="494" y="232" width="94" height="56" rx="7" fill="#e8f7ef" stroke="#b7e1cb"/><text x="541" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">拣配</text><text x="541" y="278" text-anchor="middle" fill="#637083">包管员扫码</text>
+    <rect x="606" y="232" width="94" height="56" rx="7" fill="#e8f7ef" stroke="#b7e1cb"/><text x="653" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">抽检</text><text x="653" y="278" text-anchor="middle" fill="#637083">质量员扫码</text>
+    <rect x="718" y="232" width="94" height="56" rx="7" fill="#e8f0ff" stroke="#7aa7ff"/><text x="765" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">封箱</text><text x="765" y="278" text-anchor="middle" fill="#637083">封箱员扫码</text>
+    <rect x="830" y="232" width="94" height="56" rx="7" fill="#fff4dc" stroke="#f0c879"/><text x="877" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">DNA</text><text x="877" y="278" text-anchor="middle" fill="#637083">大件必填</text>
+    <rect x="942" y="232" width="94" height="56" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="989" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">发厂</text><text x="989" y="278" text-anchor="middle" fill="#637083">物控确认</text>
+    <rect x="1054" y="232" width="94" height="56" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="1101" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">运输</text><text x="1101" y="278" text-anchor="middle" fill="#637083">物流单号</text>
+    <rect x="1166" y="232" width="94" height="56" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="1213" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">对账</text><text x="1213" y="278" text-anchor="middle" fill="#637083">财务核价</text>
+    <rect x="1278" y="232" width="94" height="56" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="1325" y="257" text-anchor="middle" font-weight="700" fill="#1f2933">报销</text><text x="1325" y="278" text-anchor="middle" fill="#637083">总部财务</text>
+  </g>
+
+  <rect x="252" y="322" width="520" height="226" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="272" y="354" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">扫码封箱作业台</text>
+  <text x="610" y="354" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">自动聚焦 / 连续扫码</text>
+  <line x1="252" y1="370" x2="772" y2="370" stroke="#d9e0e7"/>
+  <rect x="272" y="392" width="350" height="46" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="292" y="422" font-size="20" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">BOX-20260518-003</text>
+  <rect x="636" y="392" width="110" height="46" rx="8" fill="#2563eb"/>
+  <text x="691" y="421" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="Microsoft YaHei, Arial">扫码确认</text>
+  <g font-family="Microsoft YaHei, Arial">
+    <rect x="272" y="460" width="112" height="58" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="286" y="482" font-size="12" fill="#637083">计划数量</text><text x="286" y="508" font-size="22" font-weight="700" fill="#1f2933">20</text>
+    <rect x="398" y="460" width="112" height="58" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="412" y="482" font-size="12" fill="#637083">已拣配</text><text x="412" y="508" font-size="22" font-weight="700" fill="#1f2933">20</text>
+    <rect x="524" y="460" width="112" height="58" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="538" y="482" font-size="12" fill="#637083">已装箱</text><text x="538" y="508" font-size="22" font-weight="700" fill="#1f2933">18</text>
+    <rect x="650" y="460" width="96" height="58" rx="7" fill="#fbfcfd" stroke="#d9e0e7"/><text x="664" y="482" font-size="12" fill="#637083">异常</text><text x="664" y="508" font-size="22" font-weight="700" fill="#c03221">1</text>
+  </g>
+
+  <rect x="790" y="322" width="280" height="226" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="810" y="354" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">当前箱信息</text>
+  <line x1="790" y1="370" x2="1070" y2="370" stroke="#d9e0e7"/>
+  <g font-family="Microsoft YaHei, Arial" font-size="13">
+    <text x="810" y="404" fill="#637083">箱状态</text><text x="906" y="404" font-weight="700" fill="#1f2933">封箱中</text>
+    <text x="810" y="438" fill="#637083">封箱员</text><text x="906" y="438" font-weight="700" fill="#1f2933">李明</text>
+    <text x="810" y="472" fill="#637083">封箱单码</text><text x="906" y="472" font-weight="700" fill="#1f2933">PKG-003 待绑定</text>
+    <text x="810" y="506" fill="#637083">箱内数量</text><text x="906" y="506" font-weight="700" fill="#1f2933">6 / 8</text>
+  </g>
+
+  <rect x="1088" y="322" width="328" height="526" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="1108" y="354" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">操作留痕</text>
+  <text x="1360" y="354" text-anchor="end" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">最近扫码</text>
+  <line x1="1088" y1="370" x2="1416" y2="370" stroke="#d9e0e7"/>
+  <g font-family="Microsoft YaHei, Arial" font-size="13">
+    <text x="1108" y="406" fill="#637083">10:42:18</text><text x="1190" y="406" font-weight="700" fill="#c03221">封箱扫码失败</text><text x="1190" y="427" font-size="12" fill="#637083">MAT-AX009 重复装箱，设备 SCAN-03</text>
+    <line x1="1108" y1="448" x2="1396" y2="448" stroke="#edf1f5"/>
+    <text x="1108" y="482" fill="#637083">10:41:55</text><text x="1190" y="482" font-weight="700" fill="#1f2933">箱码绑定成功</text><text x="1190" y="503" font-size="12" fill="#637083">BOX-20260518-003，封箱员李明</text>
+    <line x1="1108" y1="524" x2="1396" y2="524" stroke="#edf1f5"/>
+    <text x="1108" y="558" fill="#637083">10:38:21</text><text x="1190" y="558" font-weight="700" fill="#1f2933">抽检通过</text><text x="1190" y="579" font-size="12" fill="#637083">质量员周洁，抽检 20 件</text>
+    <line x1="1108" y1="600" x2="1396" y2="600" stroke="#edf1f5"/>
+    <text x="1108" y="634" fill="#637083">10:22:09</text><text x="1190" y="634" font-weight="700" fill="#1f2933">拣配完成</text><text x="1190" y="655" font-size="12" fill="#637083">包管员陈强，应拣 20 件</text>
+  </g>
+  <rect x="1108" y="700" width="288" height="112" rx="7" fill="#ffe9e5" stroke="#f0b7ae"/>
+  <text x="1124" y="732" font-size="14" font-weight="700" fill="#c03221" font-family="Microsoft YaHei, Arial">异常处理</text>
+  <text x="1124" y="762" font-size="13" fill="#1f2933" font-family="Microsoft YaHei, Arial">异常类型：重复装箱</text>
+  <text x="1124" y="790" font-size="13" fill="#1f2933" font-family="Microsoft YaHei, Arial">建议：撤销本次扫描或调整箱明细</text>
+
+  <rect x="252" y="566" width="818" height="282" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="272" y="598" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">物料明细</text>
+  <text x="980" y="598" text-anchor="end" font-size="12" fill="#637083" font-family="Microsoft YaHei, Arial">拣配、抽检、封箱均来自扫码记录</text>
+  <line x1="252" y1="614" x2="1070" y2="614" stroke="#d9e0e7"/>
+  <rect x="252" y="615" width="818" height="42" fill="#f8fafc"/>
+  <g font-family="Microsoft YaHei, Arial" font-size="13">
+    <text x="272" y="642" fill="#637083">物料码</text><text x="400" y="642" fill="#637083">名称</text><text x="596" y="642" fill="#637083">计划</text><text x="660" y="642" fill="#637083">已拣</text><text x="724" y="642" fill="#637083">已检</text><text x="788" y="642" fill="#637083">已装</text><text x="858" y="642" fill="#637083">箱码</text><text x="1000" y="642" fill="#637083">状态</text>
+    <text x="272" y="688" fill="#1f2933">MAT-A1001</text><text x="400" y="688" fill="#1f2933">通道闸机主控板</text><text x="604" y="688" font-weight="700">4</text><text x="668" y="688" font-weight="700">4</text><text x="732" y="688" font-weight="700">4</text><text x="800" y="688" font-weight="700">4</text><text x="858" y="688">BOX-001</text><text x="1000" y="688" fill="#0f8f62" font-weight="700">完成</text>
+    <line x1="252" y1="706" x2="1070" y2="706" stroke="#edf1f5"/>
+    <text x="272" y="740" fill="#1f2933">MAT-A2008</text><text x="400" y="740" fill="#1f2933">闸机外壳组件</text><text x="604" y="740" font-weight="700">6</text><text x="668" y="740" font-weight="700">6</text><text x="732" y="740" font-weight="700">6</text><text x="800" y="740" font-weight="700">6</text><text x="858" y="740">BOX-002</text><text x="1000" y="740" fill="#0f8f62" font-weight="700">完成</text>
+    <line x1="252" y1="758" x2="1070" y2="758" stroke="#edf1f5"/>
+    <text x="272" y="792" fill="#1f2933">MAT-L3002</text><text x="400" y="792" fill="#1f2933">大件立柱组件</text><text x="604" y="792" font-weight="700">8</text><text x="668" y="792" font-weight="700">8</text><text x="732" y="792" font-weight="700">8</text><text x="800" y="792" font-weight="700">6</text><text x="858" y="792">BOX-003</text><text x="1000" y="792" fill="#b7791f" font-weight="700">待补扫</text>
+  </g>
+  <rect x="272" y="870" width="382" height="78" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="292" y="900" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">DNA 与发厂控制</text>
+  <text x="292" y="930" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">大件产品：是　DNA 状态：待录入　发厂确认：未开放</text>
+  <rect x="688" y="870" width="382" height="78" rx="8" fill="#fff" stroke="#d9e0e7"/>
+  <text x="708" y="900" font-size="15" font-weight="700" fill="#1f2933" font-family="Microsoft YaHei, Arial">物流费用</text>
+  <text x="708" y="930" font-size="13" fill="#637083" font-family="Microsoft YaHei, Arial">物流公司：待分配　物流单号：待填写　预计费用：--</text>
+</svg>

@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>物流发货作业台效果图</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d9e0e7;
+      --text: #1f2933;
+      --muted: #637083;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #0f8f62;
+      --green-soft: #e8f7ef;
+      --amber: #b7791f;
+      --amber-soft: #fff4dc;
+      --red: #c03221;
+      --red-soft: #ffe9e5;
+      --cyan: #087ea4;
+      --cyan-soft: #e2f5fb;
+      --shadow: 0 14px 32px rgba(31, 41, 51, .08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1280px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 232px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #17202b;
+      color: #cbd6e2;
+      padding: 18px 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 42px;
+      padding: 0 10px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--blue);
+      font-size: 14px;
+    }
+
+    .nav-title {
+      margin: 24px 10px 8px;
+      color: #7f8da1;
+      font-size: 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 38px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .nav-item.active {
+      background: #243244;
+      color: #fff;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: 58px 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .breadcrumb {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      height: 34px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      cursor: default;
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn.danger {
+      border-color: #f0b7ae;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .content {
+      padding: 18px 22px 24px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.45fr .9fr .9fr .9fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel.pad {
+      padding: 16px;
+    }
+
+    .shipment-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .subline {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 26px;
+      padding: 0 9px;
+      border-radius: 6px;
+      background: #eef2f6;
+      color: #445061;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tag.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .tag.green {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .tag.amber {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .tag.red {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .metric {
+      display: grid;
+      gap: 8px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 62px;
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fbfcfd;
+    }
+
+    .step.done {
+      border-color: #b7e1cb;
+      background: var(--green-soft);
+    }
+
+    .step.current {
+      border-color: #7aa7ff;
+      background: var(--blue-soft);
+      box-shadow: inset 0 0 0 1px #7aa7ff;
+    }
+
+    .step.blocked {
+      border-color: #f0c879;
+      background: var(--amber-soft);
+    }
+
+    .step-name {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .step-owner {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .body-grid {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .section-extra {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .scan-console {
+      padding: 16px;
+    }
+
+    .scan-input-wrap {
+      display: grid;
+      grid-template-columns: 1fr 98px;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .scan-input {
+      height: 46px;
+      padding: 0 14px;
+      border: 2px solid var(--blue);
+      border-radius: 8px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .scan-button {
+      height: 46px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .progress-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .mini-stat {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fbfcfd;
+    }
+
+    .mini-stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+    }
+
+    .scan-alert {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border-radius: 7px;
+      background: var(--red-soft);
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      height: 42px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      background: #f8fafc;
+      font-weight: 600;
+    }
+
+    .qty {
+      font-weight: 700;
+    }
+
+    .ok {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .warn {
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .info-list {
+      padding: 6px 16px 14px;
+    }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px dashed #dce3ea;
+      font-size: 13px;
+    }
+
+    .info-row:last-child {
+      border-bottom: 0;
+    }
+
+    .label {
+      color: var(--muted);
+    }
+
+    .value {
+      font-weight: 600;
+    }
+
+    .timeline {
+      padding: 4px 16px 16px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #edf1f5;
+      font-size: 13px;
+    }
+
+    .event-time {
+      color: var(--muted);
+    }
+
+    .event-main {
+      font-weight: 600;
+    }
+
+    .event-note {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .money {
+      color: var(--red);
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">LS</span><span>物流过程管控</span></div>
+      <div class="nav-title">作业中心</div>
+      <div class="nav-item active">发货作业台</div>
+      <div class="nav-item">扫码拣配</div>
+      <div class="nav-item">扫码抽检</div>
+      <div class="nav-item">扫码封箱</div>
+      <div class="nav-item">DNA 录入</div>
+      <div class="nav-title">物流费用</div>
+      <div class="nav-item">物流单号</div>
+      <div class="nav-item">对账核价</div>
+      <div class="nav-item">报销跟踪</div>
+      <div class="nav-title">基础设置</div>
+      <div class="nav-item">物料档案</div>
+      <div class="nav-item">物流公司</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">发货管理 / 发货作业台 / FH202605180001</div>
+        <div class="top-actions">
+          <button class="btn">打印备料单</button>
+          <button class="btn">打印封箱单</button>
+          <button class="btn danger">作废申请</button>
+          <button class="btn primary">确认当前节点</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="summary-grid">
+          <div class="panel pad">
+            <div class="shipment-title">
+              <div>
+                <h1>发货单 FH202605180001</h1>
+                <div class="subline">客户：深圳捷顺项目部　收货人：王工 138****8021　地址：广东省深圳市南山区科技园</div>
+              </div>
+              <span class="tag blue">当前：扫码封箱</span>
+            </div>
+            <div class="tag-row">
+              <span class="tag green">资料已完善</span>
+              <span class="tag green">已打印</span>
+              <span class="tag green">拣配完成</span>
+              <span class="tag green">抽检通过</span>
+              <span class="tag amber">包含大件</span>
+              <span class="tag">待 DNA</span>
+            </div>
+          </div>
+
+          <div class="panel pad metric">
+            <div class="metric-label">物料扫码进度</div>
+            <div class="metric-value">18 / 20</div>
+            <div class="metric-note">剩余 2 件待装箱</div>
+          </div>
+
+          <div class="panel pad metric">
+            <div class="metric-label">箱数</div>
+            <div class="metric-value">3 箱</div>
+            <div class="metric-note">2 箱已封，1 箱进行中</div>
+          </div>
+
+          <div class="panel pad metric">
+            <div class="metric-label">费用状态</div>
+            <div class="metric-value">未对账</div>
+            <div class="metric-note">发厂后由物流公司上传</div>
+          </div>
+        </div>
+
+        <div class="panel flow">
+          <div class="step done"><div class="step-name">完善</div><div class="step-owner">资料员</div></div>
+          <div class="step done"><div class="step-name">打印</div><div class="step-owner">资料员</div></div>
+          <div class="step done"><div class="step-name">拣配</div><div class="step-owner">包管员扫码</div></div>
+          <div class="step done"><div class="step-name">抽检</div><div class="step-owner">质量员扫码</div></div>
+          <div class="step current"><div class="step-name">封箱</div><div class="step-owner">封箱员扫码</div></div>
+          <div class="step blocked"><div class="step-name">DNA</div><div class="step-owner">大件必填</div></div>
+          <div class="step"><div class="step-name">发厂</div><div class="step-owner">物控确认</div></div>
+          <div class="step"><div class="step-name">运输</div><div class="step-owner">物流单号</div></div>
+          <div class="step"><div class="step-name">对账</div><div class="step-owner">财务核价</div></div>
+          <div class="step"><div class="step-name">报销</div><div class="step-owner">总部财务</div></div>
+        </div>
+
+        <div class="workspace">
+          <div>
+            <div class="body-grid">
+              <section class="panel">
+                <div class="section-head">
+                  <div class="section-title">扫码封箱作业台</div>
+                  <div class="section-extra">输入框自动聚焦，扫码后自动提交</div>
+                </div>
+                <div class="scan-console">
+                  <div class="scan-input-wrap">
+                    <input class="scan-input" value="BOX-20260518-003" aria-label="扫码输入">
+                    <button class="scan-button">扫码确认</button>
+                  </div>
+                  <div class="progress-row">
+                    <div class="mini-stat"><span class="label">计划数量</span><strong>20</strong></div>
+                    <div class="mini-stat"><span class="label">已拣配</span><strong>20</strong></div>
+                    <div class="mini-stat"><span class="label">已装箱</span><strong>18</strong></div>
+                    <div class="mini-stat"><span class="label">异常</span><strong>1</strong></div>
+                  </div>
+                  <div class="scan-alert">扫码异常：MAT-AX009 已在 2 号箱绑定，禁止重复装箱。</div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <div class="section-head">
+                  <div class="section-title">当前箱信息</div>
+                  <div class="section-extra">BOX-20260518-003</div>
+                </div>
+                <div class="info-list">
+                  <div class="info-row"><span class="label">箱状态</span><span class="value">封箱中</span></div>
+                  <div class="info-row"><span class="label">封箱员</span><span class="value">李明</span></div>
+                  <div class="info-row"><span class="label">封箱单码</span><span class="value">PKG-003 待绑定</span></div>
+                  <div class="info-row"><span class="label">箱内数量</span><span class="value">6 / 8</span></div>
+                  <div class="info-row"><span class="label">下一步</span><span class="value">补扫 2 件物料后打印封箱单</span></div>
+                </div>
+              </section>
+            </div>
+
+            <section class="panel" style="margin-top:14px;">
+              <div class="section-head">
+                <div class="section-title">物料明细</div>
+                <div class="section-extra">拣配、抽检、封箱均来自扫码记录</div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>物料码</th>
+                    <th>名称</th>
+                    <th>计划</th>
+                    <th>已拣</th>
+                    <th>已检</th>
+                    <th>已装箱</th>
+                    <th>箱码</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>MAT-A1001</td>
+                    <td>通道闸机主控板</td>
+                    <td class="qty">4</td>
+                    <td class="qty">4</td>
+                    <td class="qty">4</td>
+                    <td class="qty">4</td>
+                    <td>BOX-001</td>
+                    <td class="ok">完成</td>
+                  </tr>
+                  <tr>
+                    <td>MAT-A2008</td>
+                    <td>闸机外壳组件</td>
+                    <td class="qty">6</td>
+                    <td class="qty">6</td>
+                    <td class="qty">6</td>
+                    <td class="qty">6</td>
+                    <td>BOX-002</td>
+                    <td class="ok">完成</td>
+                  </tr>
+                  <tr>
+                    <td>MAT-L3002</td>
+                    <td>大件立柱组件</td>
+                    <td class="qty">8</td>
+                    <td class="qty">8</td>
+                    <td class="qty">8</td>
+                    <td class="qty">6</td>
+                    <td>BOX-003</td>
+                    <td class="warn">待补扫</td>
+                  </tr>
+                  <tr>
+                    <td>MAT-C0099</td>
+                    <td>线缆包</td>
+                    <td class="qty">2</td>
+                    <td class="qty">2</td>
+                    <td class="qty">2</td>
+                    <td class="qty">2</td>
+                    <td>BOX-003</td>
+                    <td class="ok">完成</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <div class="footer-panels">
+              <section class="panel">
+                <div class="section-head">
+                  <div class="section-title">DNA 与发厂控制</div>
+                  <div class="section-extra">大件产品强制校验</div>
+                </div>
+                <div class="info-list">
+                  <div class="info-row"><span class="label">是否大件</span><span class="value">是</span></div>
+                  <div class="info-row"><span class="label">DNA 状态</span><span class="value warn">待录入</span></div>
+                  <div class="info-row"><span class="label">发厂确认</span><span class="value">未开放</span></div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <div class="section-head">
+                  <div class="section-title">物流费用</div>
+                  <div class="section-extra">签收后进入对账</div>
+                </div>
+                <div class="info-list">
+                  <div class="info-row"><span class="label">物流公司</span><span class="value">待分配</span></div>
+                  <div class="info-row"><span class="label">物流单号</span><span class="value">待填写</span></div>
+                  <div class="info-row"><span class="label">预计费用</span><span class="value money">--</span></div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <aside class="side-stack">
+            <section class="panel">
+              <div class="section-head">
+                <div class="section-title">操作留痕</div>
+                <div class="section-extra">最近扫码</div>
+              </div>
+              <div class="timeline">
+                <div class="event">
+                  <div class="event-time">10:42:18</div>
+                  <div>
+                    <div class="event-main">封箱扫码失败</div>
+                    <div class="event-note">MAT-AX009 重复装箱，设备 SCAN-03</div>
+                  </div>
+                </div>
+                <div class="event">
+                  <div class="event-time">10:41:55</div>
+                  <div>
+                    <div class="event-main">箱码绑定成功</div>
+                    <div class="event-note">BOX-20260518-003，封箱员李明</div>
+                  </div>
+                </div>
+                <div class="event">
+                  <div class="event-time">10:38:21</div>
+                  <div>
+                    <div class="event-main">抽检通过</div>
+                    <div class="event-note">质量员周洁，抽检 20 件</div>
+                  </div>
+                </div>
+                <div class="event">
+                  <div class="event-time">10:22:09</div>
+                  <div>
+                    <div class="event-main">拣配完成</div>
+                    <div class="event-note">包管员陈强，应拣 20 件</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div class="section-title">异常处理</div>
+                <div class="section-extra">1 条待处理</div>
+              </div>
+              <div class="info-list">
+                <div class="info-row"><span class="label">异常类型</span><span class="value">重复装箱</span></div>
+                <div class="info-row"><span class="label">异常条码</span><span class="value">MAT-AX009</span></div>
+                <div class="info-row"><span class="label">处理建议</span><span class="value">从 2 号箱移除或撤销本次扫描</span></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div class="section-title">下游节点</div>
+                <div class="section-extra">系统自动拦截</div>
+              </div>
+              <div class="info-list">
+                <div class="info-row"><span class="label">DNA 录入</span><span class="value warn">封箱完成后开放</span></div>
+                <div class="info-row"><span class="label">确认发厂</span><span class="value warn">DNA 完成后开放</span></div>
+                <div class="info-row"><span class="label">物流单号</span><span class="value">发厂后由物流公司填写</span></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
