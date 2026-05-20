@@ -1,47 +1,289 @@
 <script setup>
-import { computed } from 'vue'
-import { materials, scanEvents, shipment, steps, tags } from '../data/logistics'
+import { computed, ref } from 'vue'
+import { materials, scanEvents, shipment, shipmentTasks, steps, tags } from '../data/logistics'
 
-defineEmits(['open-complete'])
+const emit = defineEmits(['open-complete', 'detail-change'])
+
+const selectedTaskNo = ref('')
+const activeTaskTab = ref('all')
+const keyword = ref('')
+const startDate = ref('2026-02-01')
+const endDate = ref('2026-02-28')
+const carrierFilter = ref('')
+const toolbarNotice = ref('')
+
+const taskStatusTabs = [
+  { key: 'draft', label: '待完善', status: '待完善' },
+  { key: 'print', label: '待打印', status: '待打印' },
+  { key: 'pick', label: '待拣配', status: '待拣配' },
+  { key: 'qc', label: '待抽检', status: '待抽检' },
+  { key: 'pack', label: '待封箱贴单', status: '待封箱贴单' },
+  { key: 'dna', label: '待录入DNA', status: '待录入DNA' },
+  { key: 'pickup', label: '待物流取货', status: '待物流取货' },
+  { key: 'leave', label: '待装车离厂', status: '待装车离厂' },
+  { key: 'reconcile', label: '待上传对账单', status: '待上传对账单' }
+]
+
+const activeTask = computed(() => shipmentTasks.find((task) => task.no === selectedTaskNo.value))
+const isTaskList = computed(() => !activeTask.value)
+const selectedShipment = computed(() => activeTask.value || shipment)
+const detailTags = computed(() => {
+  if (!activeTask.value) return tags
+
+  return [
+    { text: activeTask.value.status, tone: activeTask.value.tone },
+    { text: activeTask.value.priority, tone: activeTask.value.priority === '加急' ? 'amber' : 'neutral' },
+    { text: activeTask.value.feeStatus, tone: 'neutral' }
+  ]
+})
+
+const taskTabs = computed(() => [
+  { key: 'all', label: '全部', count: shipmentTasks.length },
+  ...taskStatusTabs.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    count: countByTab(tab.key)
+  }))
+])
+
+const carrierOptions = computed(() => [...new Set(shipmentTasks.map((task) => task.carrier))])
+const filteredTasks = computed(() => {
+  const query = keyword.value.trim().toLowerCase()
+
+  return shipmentTasks.filter((task) => {
+    if (!matchesTaskTab(task, activeTaskTab.value)) return false
+    if (carrierFilter.value && task.carrier !== carrierFilter.value) return false
+    if (startDate.value && task.requiredDate < startDate.value) return false
+    if (endDate.value && task.requiredDate > endDate.value) return false
+    if (!query) return true
+
+    return [
+      task.no,
+      task.applicationNo,
+      task.deliveryNo,
+      task.transferNo,
+      task.contractNo,
+      task.salesOrderNo,
+      task.receiverCompany
+    ].some((value) => String(value || '').toLowerCase().includes(query))
+  })
+})
 
 const summary = computed(() => [
   {
     label: '物料扫码进度',
-    value: `${shipment.progress.done} / ${shipment.progress.total}`,
-    note: `剩余 ${shipment.progress.total - shipment.progress.done} 件待装箱`
+    value: `${selectedShipment.value.progress.done} / ${selectedShipment.value.progress.total}`,
+    note: `剩余 ${selectedShipment.value.progress.total - selectedShipment.value.progress.done} 件待装箱`
   },
   {
     label: '箱数',
-    value: `${shipment.boxes.total} 箱`,
-    note: `${shipment.boxes.sealed} 箱已封，${shipment.boxes.active} 箱进行中`
+    value: `${selectedShipment.value.boxes.total} 箱`,
+    note: `${selectedShipment.value.boxes.sealed} 箱已封，${selectedShipment.value.boxes.active} 箱进行中`
   },
   {
     label: '费用状态',
-    value: shipment.feeStatus,
+    value: selectedShipment.value.feeStatus,
     note: '发厂后由物流公司上传'
   }
 ])
+
+function matchesTaskTab(task, key) {
+  if (key === 'all') return true
+
+  const statusTab = taskStatusTabs.find((tab) => tab.key === key)
+  if (statusTab) return task.status === statusTab.status
+
+  return true
+}
+
+function countByTab(key) {
+  return shipmentTasks.filter((task) => matchesTaskTab(task, key)).length
+}
+
+function taskActions(task) {
+  const actions = ['详情']
+
+  if (task.status === '待完善') return [...actions, '完善', '废弃']
+  if (task.status === '待打印') return [...actions, '打印', '废弃']
+  if (task.status === '待拣配') return [...actions, '拣配']
+  if (task.status === '待抽检') return [...actions, '抽检']
+  if (task.status === '待封箱贴单') return [...actions, '封箱贴单']
+  if (task.status === '待录入DNA') return [...actions, '录入DNA']
+  if (task.status === '待物流取货') return [...actions, '发车离厂']
+
+  return actions
+}
+
+function showTaskDetail(taskNo) {
+  selectedTaskNo.value = taskNo
+  emit('detail-change', taskNo)
+}
+
+function showAllTasks() {
+  selectedTaskNo.value = ''
+  emit('detail-change', '')
+}
+
+function runSearch() {
+  toolbarNotice.value = `已查询到 ${filteredTasks.value.length} 条数据`
+}
+
+function resetFilters() {
+  activeTaskTab.value = 'all'
+  keyword.value = ''
+  startDate.value = '2026-02-01'
+  endDate.value = '2026-02-28'
+  carrierFilter.value = ''
+  toolbarNotice.value = ''
+}
+
+function exportTasks() {
+  toolbarNotice.value = `已导出当前 ${filteredTasks.value.length} 条数据`
+}
+
+function handleTaskAction(action, task) {
+  if (action === '完善') {
+    selectedTaskNo.value = task.no
+    emit('open-complete')
+    return
+  }
+
+  showTaskDetail(task.no)
+}
+
+defineExpose({ showAllTasks })
 </script>
 
 <template>
   <section class="content">
-    <section class="summary-grid">
+    <template v-if="isTaskList">
+      <section class="panel delivery-manager">
+        <div class="delivery-tabs">
+          <button
+            v-for="tab in taskTabs"
+            :key="tab.key"
+            class="delivery-tab"
+            :class="{ active: activeTaskTab === tab.key }"
+            type="button"
+            @click="activeTaskTab = tab.key"
+          >
+            {{ tab.label }}<span v-if="tab.count !== undefined">（{{ tab.count }}）</span>
+          </button>
+        </div>
+
+        <div class="delivery-filter">
+          <label class="filter-field keyword-field">
+            <span>送货单号、交货单号、调拨单号</span>
+            <input v-model="keyword" type="search" placeholder="请输入关键字" />
+          </label>
+          <label class="filter-field date-field">
+            <span>要求到货日期</span>
+            <input v-model="startDate" type="date" />
+          </label>
+          <span class="date-separator">~</span>
+          <label class="filter-field compact-field">
+            <span class="visually-hidden">结束日期</span>
+            <input v-model="endDate" type="date" />
+          </label>
+          <label class="filter-field carrier-field">
+            <span>承运公司</span>
+            <select v-model="carrierFilter">
+              <option value="">全部</option>
+              <option v-for="carrier in carrierOptions" :key="carrier" :value="carrier">{{ carrier }}</option>
+            </select>
+          </label>
+          <button class="btn primary" type="button" @click="runSearch">查询</button>
+          <button class="btn" type="button" @click="resetFilters">重置</button>
+          <button class="btn" type="button" @click="exportTasks">导出</button>
+        </div>
+        <div v-if="toolbarNotice" class="toolbar-notice">{{ toolbarNotice }}</div>
+
+        <div class="table-wrap delivery-table-wrap">
+          <table class="delivery-table">
+            <thead>
+              <tr>
+                <th>送货单号</th>
+                <th>状态</th>
+                <th>出货申请单号</th>
+                <th>交货单号</th>
+                <th>调拨单号</th>
+                <th>要求到货日</th>
+                <th>合同号</th>
+                <th>销售单号</th>
+                <th>收货单位</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="task in filteredTasks" :key="task.no">
+                <td class="link-cell">
+                  <button class="text-link" type="button" @click="showTaskDetail(task.no)">{{ task.no }}</button>
+                </td>
+                <td>{{ task.status }}</td>
+                <td><button class="text-link" type="button" @click="showTaskDetail(task.no)">{{ task.applicationNo }}</button></td>
+                <td>{{ task.deliveryNo || '-' }}</td>
+                <td>{{ task.transferNo || '-' }}</td>
+                <td>{{ task.requiredDate }}</td>
+                <td>{{ task.contractNo }}</td>
+                <td>{{ task.salesOrderNo }}</td>
+                <td>{{ task.receiverCompany }}</td>
+                <td class="action-cell">
+                  <button
+                    v-for="action in taskActions(task)"
+                    :key="action"
+                    class="action-link"
+                    :class="{ warn: action === '废弃' }"
+                    type="button"
+                    @click="handleTaskAction(action, task)"
+                  >
+                    {{ action }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredTasks.length === 0">
+                <td class="empty-cell" colspan="10">暂无符合条件的送货单</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <span>共{{ shipmentTasks.length }}条数据</span>
+          <button class="pager-btn" type="button" disabled>&lt;</button>
+          <button class="pager-btn active" type="button">1</button>
+          <button class="pager-btn" type="button">2</button>
+          <button class="pager-btn" type="button">3</button>
+          <button class="pager-btn" type="button">&gt;</button>
+          <select class="page-size" aria-label="每页条数">
+            <option>10 条/页</option>
+            <option>20 条/页</option>
+          </select>
+          <span>跳至</span>
+          <input class="jump-input" type="number" min="1" value="1" />
+          <span>页</span>
+        </div>
+      </section>
+    </template>
+
+    <template v-else>
+      <section class="summary-grid">
       <article class="panel shipment-card">
         <div class="shipment-title">
           <div>
-            <h1>发货单 {{ shipment.no }}</h1>
+            <h1>发货单 {{ selectedShipment.no }}</h1>
             <p class="subline">
-              客户：{{ shipment.customer }} | 收货人：{{ shipment.receiver }} {{ shipment.phone }} |
-              地址：{{ shipment.address }}
+              客户：{{ selectedShipment.customer }} | 收货人：{{ selectedShipment.receiver }} {{ selectedShipment.phone }} |
+              地址：{{ selectedShipment.address }}
             </p>
           </div>
           <div class="shipment-actions">
-            <span class="tag blue">当前：{{ shipment.currentNode }}</span>
+            <span class="tag blue">当前：{{ selectedShipment.currentNode }}</span>
+            <button class="btn" type="button" @click="showAllTasks">全部任务</button>
             <button
-              v-if="shipment.currentNode === '完善'"
+              v-if="selectedShipment.currentNode === '完善'"
               class="btn primary"
               type="button"
-              @click="$emit('open-complete')"
+              @click="emit('open-complete')"
             >
               完善
             </button>
@@ -49,7 +291,7 @@ const summary = computed(() => [
         </div>
 
         <div class="tag-row">
-          <span v-for="tag in tags" :key="tag.text" class="tag" :class="tag.tone">{{ tag.text }}</span>
+          <span v-for="tag in detailTags" :key="tag.text" class="tag" :class="tag.tone">{{ tag.text }}</span>
         </div>
       </article>
 
@@ -135,5 +377,6 @@ const summary = computed(() => [
         </section>
       </aside>
     </section>
+    </template>
   </section>
 </template>

@@ -1,8 +1,10 @@
 {
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "deploy:vercel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-vercel.ps1",
+    "deploy:vercel:preview": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-vercel.ps1 -Preview"
   },
   "dependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
