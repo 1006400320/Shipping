@@ -353,6 +353,242 @@ function closePickupManager() {
   pickupDialogCarrierId.value = ''
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function getAddPickupPersonFlowHtml(carrierName) {
+  const safeCarrierName = escapeHtml(carrierName || '未选择承运公司')
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>添加提货人流程</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #fff;
+      --line: #d9e0e7;
+      --text: #1f2933;
+      --muted: #637083;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #0f8f62;
+      --green-soft: #e8f7ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+    .subline {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .step {
+      min-height: 92px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .step strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--blue);
+      font-size: 15px;
+    }
+    .step span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .form-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding: 16px;
+    }
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    input, textarea, select {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+    }
+    input, select {
+      height: 38px;
+      padding: 0 10px;
+    }
+    textarea {
+      min-height: 86px;
+      padding: 9px 10px;
+      resize: vertical;
+    }
+    .readonly {
+      background: #f3f6f8;
+      color: var(--muted);
+    }
+    .wide {
+      grid-column: 1 / -1;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 16px;
+      border-top: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .btn {
+      min-height: 34px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+    .notice {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    @media (max-width: 760px) {
+      .steps,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .header {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="header">
+      <div>
+        <h1>添加提货人流程</h1>
+        <div class="subline">承运公司：${safeCarrierName} | 流程编号提交后由系统生成</div>
+      </div>
+      <span class="tag">申请流程</span>
+    </div>
+
+    <section class="steps">
+      <div class="step"><strong>1. 发起申请</strong><span>填写提货人姓名、手机号、身份证号，并上传授权材料。</span></div>
+      <div class="step"><strong>2. 信息校验</strong><span>校验手机号、身份证号格式，并检查同一承运公司下是否重复。</span></div>
+      <div class="step"><strong>3. 业务审批</strong><span>物流管理员审核提货人身份和授权材料，审批通过后生效。</span></div>
+      <div class="step"><strong>4. 可用生效</strong><span>状态为正常后，发货完善页可选择该提货人并自动带出联系方式。</span></div>
+    </section>
+
+    <section class="panel">
+      <div class="form-head">提货人申请单</div>
+      <div class="form-grid">
+        <label>承运公司<input class="readonly" value="${safeCarrierName}" readonly /></label>
+        <label>申请类型<select><option>新增提货人</option></select></label>
+        <label>提货人名称<input placeholder="请输入提货人姓名" /></label>
+        <label>手机号<input placeholder="请输入 11 位手机号" /></label>
+        <label>身份证号<input placeholder="请输入身份证号" /></label>
+        <label>授权附件<input type="file" /></label>
+        <label class="wide">申请说明<textarea placeholder="填写新增原因、适用仓库或特殊限制"></textarea></label>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button">保存草稿</button>
+        <button class="btn primary" type="button">提交申请</button>
+      </div>
+    </section>
+
+    <div class="notice">提交后生成申请流程号，审批通过后回写到承运公司提货人列表。</div>
+  </main>
+</body>
+</html>`
+}
+
+function openAddPickupPersonFlow() {
+  const html = getAddPickupPersonFlowHtml(pickupDialogCarrier.value?.carrier)
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+  window.open(url, '_blank', 'noopener,noreferrer')
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+}
+
 function togglePickupPersonStatus(person) {
   const carrier = pickupDialogCarrier.value
   if (!carrier || !person) return
@@ -872,6 +1108,10 @@ watch([freightRows, boxRows, carrierRows, senderRows], schedulePersistRows, { de
         </div>
 
         <div class="pickup-manager-body">
+          <div class="pickup-manager-toolbar">
+            <button class="btn primary" type="button" @click="openAddPickupPersonFlow">添加提货人</button>
+          </div>
+
           <div class="table-wrap pickup-table-wrap">
             <table class="delivery-table pickup-table">
               <thead>

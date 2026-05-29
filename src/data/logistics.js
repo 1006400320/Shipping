@@ -227,6 +227,29 @@ export const shipmentTasks = [
     applicationNo: '13245678',
     deliveryNo: '81113003',
     transferNo: '',
+    requiredDate: '2026-02-26',
+    contractNo: '94126000001',
+    salesOrderNo: '1033001',
+    receiverCompany: '上海第一分公司',
+    carrier: '顺丰速运',
+    currentNode: '签收',
+    status: '待签收',
+    priority: '普通',
+    plannedDate: '2026-02-26',
+    progress: { done: 12, total: 12 },
+    boxes: { total: 2, sealed: 2, active: 0 },
+    feeStatus: '待签收',
+    tone: 'green'
+  },
+  {
+    no: '2604030011',
+    customer: '上海第一分公司',
+    receiver: '郑工',
+    phone: '13800100091',
+    address: '上海市徐汇区漕河泾',
+    applicationNo: '13245678',
+    deliveryNo: '81113003',
+    transferNo: '',
     requiredDate: '2026-02-25',
     contractNo: '94126000001',
     salesOrderNo: '1033001',
@@ -239,6 +262,52 @@ export const shipmentTasks = [
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
     feeStatus: '待上传对账单',
+    tone: 'neutral'
+  },
+  {
+    no: '2604030012',
+    customer: '上海第一分公司',
+    receiver: '郑工',
+    phone: '13800100091',
+    address: '上海市徐汇区漕河泾',
+    applicationNo: '13245678',
+    deliveryNo: '81113003',
+    transferNo: '',
+    requiredDate: '2026-02-25',
+    contractNo: '94126000001',
+    salesOrderNo: '1033001',
+    receiverCompany: '上海第一分公司',
+    carrier: '德邦物流',
+    currentNode: '仓管对账',
+    status: '待仓管对账',
+    priority: '普通',
+    plannedDate: '2026-02-25',
+    progress: { done: 12, total: 12 },
+    boxes: { total: 2, sealed: 2, active: 0 },
+    feeStatus: '待仓管对账',
+    tone: 'neutral'
+  },
+  {
+    no: '2604030013',
+    customer: '上海第一分公司',
+    receiver: '郑工',
+    phone: '13800100091',
+    address: '上海市徐汇区漕河泾',
+    applicationNo: '13245678',
+    deliveryNo: '81113003',
+    transferNo: '',
+    requiredDate: '2026-02-25',
+    contractNo: '94126000001',
+    salesOrderNo: '1033001',
+    receiverCompany: '上海第一分公司',
+    carrier: '跨越速运',
+    currentNode: '财务对账',
+    status: '待财务对账',
+    priority: '普通',
+    plannedDate: '2026-02-25',
+    progress: { done: 12, total: 12 },
+    boxes: { total: 2, sealed: 2, active: 0 },
+    feeStatus: '待财务对账',
     tone: 'neutral'
   }
 ]
@@ -312,7 +381,11 @@ export const materials = [
     box: 'BOX-003',
     status: '完成',
     tone: 'ok',
-    large: false
+    large: false,
+    weightKg: 0.38,
+    lengthMm: 430,
+    widthMm: 180,
+    heightMm: 90
   }
 ]
 
@@ -347,7 +420,12 @@ export const boxes = [
 ]
 
 export const dnaRecords = [
-  { material: 'MAT-L3002', name: '大件立柱组件', dnaNo: '待录入', verifier: '未校验', status: '待处理' }
+  { material: 'MAT-L3002', name: '大件立柱组件', dnaNo: '待录入', verifier: '未校验', status: '待处理' },
+  { material: 'MAT-L3018', name: '闸机门翼组件', dnaNo: '待录入', verifier: '未校验', status: '待处理' },
+  { material: 'MAT-A1001', name: '通道闸机主控板', dnaNo: '待录入', verifier: '未校验', status: '待处理' },
+  { material: 'MAT-A2008', name: '闸机外壳组件', dnaNo: '待录入', verifier: '未校验', status: '待处理' },
+  { material: 'MAT-C0099', name: '线缆包', dnaNo: '待录入', verifier: '未校验', status: '待处理' },
+  { material: 'MAT-P0601', name: '电源适配器', dnaNo: '待录入', verifier: '未校验', status: '待处理' }
 ]
 
 export const feeItems = [
@@ -355,6 +433,23 @@ export const feeItems = [
   { name: '送货费', amount: '260.00', status: '待核价' },
   { name: '中转费', amount: '0.00', status: '无' },
   { name: '延误扣费', amount: '0.00', status: '无' }
+]
+
+export const feeChangeTypes = ['延期扣费', '中转费', '运输费', '送货费', '其他费用']
+
+export const feeChangeApprovalSteps = ['物流公司审批', '仓管审批', '总部财务审批']
+
+export const feeChangeFlows = [
+  {
+    id: 'FCF-20260526001',
+    shipmentNo: '2604030008',
+    feeType: '中转费',
+    amount: '120.00',
+    reason: '客户临时调整收货点，产生中转费用',
+    status: '审批中',
+    currentStep: '仓管审批',
+    steps: feeChangeApprovalSteps
+  }
 ]
 
 export const freightConfigs = [

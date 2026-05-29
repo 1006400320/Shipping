@@ -31,7 +31,7 @@ import { materials } from '../data/logistics'
         <table>
           <thead>
             <tr>
-              <th>物料码</th>
+              <th>物料编码</th>
               <th>名称</th>
               <th>是否大件</th>
               <th>状态</th>

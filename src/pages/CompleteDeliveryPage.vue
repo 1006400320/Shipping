@@ -1,9 +1,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { senderConfigs } from '../data/logistics'
+import { carrierConfigs, senderConfigs, shipmentTasks } from '../data/logistics'
 import { idbGet } from '../storage/indexedDb'
 
-defineEmits(['back-to-workbench'])
+const props = defineProps({
+  taskNo: {
+    type: String,
+    default: ''
+  }
+})
+const emit = defineEmits(['back-to-workbench'])
 
 const NORMAL = '正常'
 const FREIGHT_CONFIG_STORAGE_KEY = 'freight-config:v1'
@@ -12,7 +18,11 @@ const settlementMethods = ['月结', '现付']
 const showOrgDialog = ref(false)
 const selectedCostCenter = ref(null)
 const senderRows = ref(senderConfigs.map((item) => ({ ...item })))
+const carrierRows = ref(cloneRows(carrierConfigs))
 const selectedSenderId = ref('')
+const selectedCarrierId = ref('')
+const selectedPickupPersonId = ref('')
+const sheetNotice = ref('')
 
 const organizationTree = [
   {
@@ -83,43 +93,87 @@ const selectedSender = computed(() =>
   enabledSenderOptions.value.find((item) => item.id === selectedSenderId.value)
 )
 const selectedSenderPhone = computed(() => selectedSender.value?.phone || '')
+const enabledCarrierOptions = computed(() => carrierRows.value.filter((item) => item.status === NORMAL))
+const selectedCarrier = computed(() =>
+  enabledCarrierOptions.value.find((item) => item.id === selectedCarrierId.value)
+)
+const enabledPickupPersonOptions = computed(() => {
+  const people = selectedCarrier.value?.pickupPeople
+  return Array.isArray(people) ? people.filter((person) => person.status === NORMAL) : []
+})
+const selectedPickupPerson = computed(() =>
+  enabledPickupPersonOptions.value.find((person) => person.id === selectedPickupPersonId.value)
+)
+const selectedPickupPhone = computed(() => selectedPickupPerson.value?.phone || '')
+const selectedPickupIdCard = computed(() => selectedPickupPerson.value?.idCard || '')
 
 function cloneRows(rows) {
-  return rows.map((item) => ({ ...item }))
+  return rows.map((item) => ({
+    ...item,
+    pickupPeople: Array.isArray(item.pickupPeople)
+      ? item.pickupPeople.map((person) => ({ ...person }))
+      : item.pickupPeople
+  }))
 }
 
-function mergeSenderRow(item, fallback) {
+function mergeConfigRow(item, fallback) {
   const merged = { ...(fallback || {}), ...item }
 
   if (fallback?.phone && typeof merged.phone === 'string' && merged.phone.includes('*')) {
     merged.phone = fallback.phone
   }
 
+  if (Array.isArray(fallback?.pickupPeople) || Array.isArray(item?.pickupPeople)) {
+    const fallbackPeople = Array.isArray(fallback?.pickupPeople) ? fallback.pickupPeople : []
+    const savedPeople = Array.isArray(item?.pickupPeople) ? item.pickupPeople : []
+    const fallbackById = new Map(fallbackPeople.map((person) => [person.id, person]))
+    const mergedPeople = savedPeople.map((person) => ({
+      ...(fallbackById.get(person.id) || {}),
+      ...person
+    }))
+    const mergedIds = new Set(mergedPeople.map((person) => person.id))
+    const missingFallbackPeople = fallbackPeople.filter((person) => !mergedIds.has(person.id))
+    merged.pickupPeople = [...mergedPeople, ...missingFallbackPeople.map((person) => ({ ...person }))]
+  }
+
   return merged
 }
 
-function restoreSenderRows(savedRows) {
-  if (!Array.isArray(savedRows)) return cloneRows(senderConfigs)
+function restoreRows(savedRows, fallbackRows) {
+  if (!Array.isArray(savedRows)) return cloneRows(fallbackRows)
 
-  const fallbackById = new Map(senderConfigs.map((item) => [item.id, item]))
-  const restoredRows = savedRows.map((item) => mergeSenderRow(item, fallbackById.get(item.id)))
+  const fallbackById = new Map(fallbackRows.map((item) => [item.id, item]))
+  const restoredRows = savedRows.map((item) => mergeConfigRow(item, fallbackById.get(item.id)))
   const restoredIds = new Set(restoredRows.map((item) => item.id))
-  const newFallbackRows = senderConfigs.filter((item) => !restoredIds.has(item.id))
+  const newFallbackRows = fallbackRows.filter((item) => !restoredIds.has(item.id))
 
   return [...restoredRows, ...cloneRows(newFallbackRows)]
 }
 
-async function loadSenderOptions() {
+async function loadConfigOptions() {
   try {
     const saved = await idbGet(FREIGHT_CONFIG_STORAGE_KEY)
-    senderRows.value = restoreSenderRows(saved?.senderRows)
+    senderRows.value = restoreRows(saved?.senderRows, senderConfigs)
+    carrierRows.value = restoreRows(saved?.carrierRows, carrierConfigs)
 
     if (!enabledSenderOptions.value.some((item) => item.id === selectedSenderId.value)) {
       selectedSenderId.value = ''
     }
+    if (!enabledCarrierOptions.value.some((item) => item.id === selectedCarrierId.value)) {
+      selectedCarrierId.value = ''
+      selectedPickupPersonId.value = ''
+    }
+    if (!enabledPickupPersonOptions.value.some((person) => person.id === selectedPickupPersonId.value)) {
+      selectedPickupPersonId.value = ''
+    }
   } catch (error) {
     senderRows.value = cloneRows(senderConfigs)
+    carrierRows.value = cloneRows(carrierConfigs)
   }
+}
+
+function handleCarrierChange() {
+  selectedPickupPersonId.value = ''
 }
 
 function openOrgDialog() {
@@ -164,8 +218,37 @@ function getReadonlyExpenseValue(key) {
   return formatMoney(key === 'transportFee' ? transportFee.value : totalFee.value)
 }
 
+function getCurrentTask() {
+  return shipmentTasks.find((task) => task.no === props.taskNo)
+}
+
+function saveDraft() {
+  const task = getCurrentTask()
+
+  if (task) {
+    task.currentNode = '完善'
+    task.status = '待完善'
+    task.tone = 'amber'
+  }
+
+  sheetNotice.value = '已保存为草稿'
+}
+
+function submitDelivery() {
+  const task = getCurrentTask()
+
+  if (task) {
+    task.currentNode = '打印'
+    task.status = '待打印'
+    task.tone = 'blue'
+  }
+
+  sheetNotice.value = '已提交，状态已变更为待打印'
+  emit('back-to-workbench')
+}
+
 onMounted(() => {
-  void loadSenderOptions()
+  void loadConfigOptions()
 })
 </script>
 
@@ -173,8 +256,8 @@ onMounted(() => {
   <section class="content complete-page">
     <section class="panel delivery-sheet">
       <div class="sheet-actions">
-        <button class="btn" type="button" @click="$emit('back-to-workbench')">返回工作台</button>
-        <button class="btn primary" type="button">保存</button>
+        <button class="btn" type="button" @click="saveDraft">保存</button>
+        <button class="btn primary" type="button" @click="submitDelivery">提交</button>
       </div>
 
       <header class="delivery-header">
@@ -194,6 +277,7 @@ onMounted(() => {
           <strong>送货单</strong>
         </div>
       </header>
+      <div v-if="sheetNotice" class="toolbar-notice sheet-notice">{{ sheetNotice }}</div>
 
       <section class="delivery-basic">
         <div class="basic-left">
@@ -252,7 +336,7 @@ onMounted(() => {
 
         <div class="basic-right">
           <label class="form-line">
-            <span>单据号</span>
+            <span>送货单号</span>
             <input
               class="sheet-input readonly-field"
               type="text"
@@ -362,10 +446,54 @@ onMounted(() => {
       <section class="sign-grid">
         <div class="sign-title carrier-title">承运方签收</div>
         <div class="carrier-fields">
-          <label><span>公司名称</span><select class="sheet-input"><option></option></select></label>
-          <label><span>提货人</span><input class="sheet-input" type="text" /></label>
-          <label><span>证件号码</span><input class="sheet-input" type="text" /></label>
-          <label><span>提货人电话</span><input class="sheet-input" type="tel" /></label>
+          <label>
+            <span>公司名称</span>
+            <select v-model="selectedCarrierId" class="sheet-input" @change="handleCarrierChange">
+              <option value="">请选择承运公司</option>
+              <option v-for="carrier in enabledCarrierOptions" :key="carrier.id" :value="carrier.id">
+                {{ carrier.carrier }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>提货人</span>
+            <select
+              v-model="selectedPickupPersonId"
+              class="sheet-input"
+              :disabled="!selectedCarrierId || !enabledPickupPersonOptions.length"
+            >
+              <option value="">
+                {{ selectedCarrierId && !enabledPickupPersonOptions.length ? '该公司暂无正常提货人' : '请选择提货人' }}
+              </option>
+              <option v-for="person in enabledPickupPersonOptions" :key="person.id" :value="person.id">
+                {{ person.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>证件号码</span>
+            <input
+              class="sheet-input readonly-field"
+              type="text"
+              :value="selectedPickupIdCard"
+              placeholder="自动带出证件号码"
+              readonly
+              aria-readonly="true"
+              tabindex="-1"
+            />
+          </label>
+          <label>
+            <span>提货人电话</span>
+            <input
+              class="sheet-input readonly-field"
+              type="tel"
+              :value="selectedPickupPhone"
+              placeholder="自动带出电话"
+              readonly
+              aria-readonly="true"
+              tabindex="-1"
+            />
+          </label>
           <label><span>车牌号</span><input class="sheet-input" type="text" /></label>
         </div>
 
@@ -402,7 +530,12 @@ onMounted(() => {
           <span>收货人姓名(盖章)</span>
           <input class="sheet-input" type="text" />
         </label>
-        <div class="id-note">身份证号码(可写前6位或者后6位)收货后异常备注</div>
+        <label class="receiver-date">
+          <span>签收日期</span>
+          <input class="sheet-input" type="date" />
+        </label>
+        <div class="id-note">身份证号码(可写前6位或者后6位)</div>
+        <div class="exception-note">收货后异常备注</div>
         <div class="sign-note">签收说明：请参考背面签收说明</div>
       </section>
     </section>
