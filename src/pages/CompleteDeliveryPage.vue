@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { carrierConfigs, senderConfigs, shipmentTasks } from '../data/logistics'
-import { idbGet } from '../storage/indexedDb'
+import { idbGet, idbSet } from '../storage/indexedDb'
 
 const props = defineProps({
   taskNo: {
@@ -23,6 +23,32 @@ const selectedSenderId = ref('')
 const selectedCarrierId = ref('')
 const selectedPickupPersonId = ref('')
 const sheetNotice = ref('')
+const DELIVERY_DETAIL_STORAGE_PREFIX = 'delivery-detail:'
+const deliveryForm = reactive({
+  receiverCompany: '',
+  deliveryMethod: '',
+  settlementMethod: '',
+  originCountry: '中国',
+  originProvince: '广东省',
+  originCity: '深圳市',
+  originAddress: '',
+  destinationProvince: '',
+  destinationCity: '',
+  address: '',
+  deliveryNote: '',
+  deliveryNo: '',
+  contractNo: '',
+  salesOrderNo: '',
+  receiver: '',
+  receiverPhone: '',
+  vehicleNo: '',
+  actualDeliveryDate: '',
+  requiredArrivalDate: '',
+  handoverContact: '',
+  signDate: '',
+  receiverSignName: '',
+  receiverSignDate: ''
+})
 
 const organizationTree = [
   {
@@ -56,7 +82,6 @@ const organizationTree = [
     ]
   }
 ]
-
 const materialRows = reactive([
   { code: '', description: '', unit: '', actualQty: '', pieces: '', price: '', total: '', remark: '' }
 ])
@@ -222,7 +247,68 @@ function getCurrentTask() {
   return shipmentTasks.find((task) => task.no === props.taskNo)
 }
 
-function saveDraft() {
+function getDeliveryDetailKey() {
+  return `${DELIVERY_DETAIL_STORAGE_PREFIX}${props.taskNo || 'draft'}`
+}
+
+function buildDeliveryPayload() {
+  return {
+    taskNo: props.taskNo,
+    deliveryForm: { ...deliveryForm },
+    materialRows: materialRows.map((item) => ({ ...item })),
+    expenseForm: { ...expenseForm },
+    selectedCostCenter: selectedCostCenter.value ? { ...selectedCostCenter.value } : null,
+    selectedSenderId: selectedSenderId.value,
+    selectedCarrierId: selectedCarrierId.value,
+    selectedPickupPersonId: selectedPickupPersonId.value,
+    sender: selectedSender.value ? { ...selectedSender.value } : null,
+    carrier: selectedCarrier.value ? { ...selectedCarrier.value } : null,
+    pickupPerson: selectedPickupPerson.value ? { ...selectedPickupPerson.value } : null,
+    transportFee: transportFee.value,
+    totalFee: totalFee.value,
+    updatedAt: new Date().toISOString()
+  }
+}
+
+async function saveDeliveryDetail() {
+  if (!props.taskNo) throw new Error('缺少发货单号，无法保存完善信息')
+  const payload = buildDeliveryPayload()
+  await idbSet(getDeliveryDetailKey(), payload)
+  return payload
+}
+
+async function loadDeliveryDetail() {
+  if (!props.taskNo) return
+
+  const saved = await idbGet(getDeliveryDetailKey())
+  if (!saved) {
+    const task = getCurrentTask()
+    if (task) {
+      deliveryForm.receiverCompany = task.receiverCompany || task.customer || ''
+      deliveryForm.deliveryNo = task.deliveryNo || ''
+      deliveryForm.contractNo = task.contractNo || ''
+      deliveryForm.salesOrderNo = task.salesOrderNo || ''
+      deliveryForm.receiver = task.receiver || ''
+      deliveryForm.receiverPhone = task.phone || ''
+      deliveryForm.address = task.address || ''
+      deliveryForm.requiredArrivalDate = task.requiredDate || ''
+    }
+    return
+  }
+
+  Object.assign(deliveryForm, saved.deliveryForm || {})
+  Object.assign(expenseForm, saved.expenseForm || {})
+  selectedCostCenter.value = saved.selectedCostCenter || null
+  selectedSenderId.value = saved.selectedSenderId || ''
+  selectedCarrierId.value = saved.selectedCarrierId || ''
+  selectedPickupPersonId.value = saved.selectedPickupPersonId || ''
+
+  if (Array.isArray(saved.materialRows) && saved.materialRows.length) {
+    materialRows.splice(0, materialRows.length, ...saved.materialRows.map((item) => ({ ...item })))
+  }
+}
+
+async function saveDraft() {
   const task = getCurrentTask()
 
   if (task) {
@@ -231,24 +317,43 @@ function saveDraft() {
     task.tone = 'amber'
   }
 
-  sheetNotice.value = '已保存为草稿'
+  try {
+    await saveDeliveryDetail()
+    sheetNotice.value = '已保存完善信息草稿'
+  } catch (error) {
+    sheetNotice.value = error instanceof Error ? error.message : '保存失败'
+  }
 }
 
-function submitDelivery() {
+async function submitDelivery() {
   const task = getCurrentTask()
 
-  if (task) {
-    task.currentNode = '打印'
-    task.status = '待打印'
-    task.tone = 'blue'
-  }
+  try {
+    const saved = await saveDeliveryDetail()
 
-  sheetNotice.value = '已提交，状态已变更为待打印'
-  emit('back-to-workbench')
+    if (task) {
+      task.currentNode = '打印'
+      task.status = '待打印'
+      task.tone = 'blue'
+      task.deliveryNo = saved.deliveryForm.deliveryNo || task.deliveryNo
+      task.contractNo = saved.deliveryForm.contractNo || task.contractNo
+      task.salesOrderNo = saved.deliveryForm.salesOrderNo || task.salesOrderNo
+      task.receiverCompany = saved.deliveryForm.receiverCompany || task.receiverCompany
+      task.receiver = saved.deliveryForm.receiver || task.receiver
+      task.phone = saved.deliveryForm.receiverPhone || task.phone
+      task.address = saved.deliveryForm.address || task.address
+    }
+
+    sheetNotice.value = '已提交，完善信息已同步到详情页'
+    emit('back-to-workbench')
+  } catch (error) {
+    sheetNotice.value = error instanceof Error ? error.message : '提交失败'
+  }
 }
 
 onMounted(() => {
   void loadConfigOptions()
+  void loadDeliveryDetail()
 })
 </script>
 
@@ -283,7 +388,7 @@ onMounted(() => {
         <div class="basic-left">
           <label class="form-line form-line-wide">
             <span>收货单位<span class="required">*</span></span>
-            <input class="sheet-input" type="text" />
+            <input v-model="deliveryForm.receiverCompany" class="sheet-input" type="text" />
           </label>
 
           <div class="form-line split-line">
@@ -296,7 +401,7 @@ onMounted(() => {
           <div class="form-line option-line">
             <span>发运方式<span class="required">*</span></span>
             <label v-for="method in deliveryMethods" :key="method" class="radio-item">
-              <input type="radio" name="deliveryMethod" />
+              <input v-model="deliveryForm.deliveryMethod" type="radio" name="deliveryMethod" :value="method" />
               {{ method }}
             </label>
           </div>
@@ -304,16 +409,22 @@ onMounted(() => {
           <div class="form-line option-line">
             <span>结算方式<span class="required">*</span></span>
             <label v-for="method in settlementMethods" :key="method" class="radio-item">
-              <input type="radio" name="settlementMethod" />
+              <input v-model="deliveryForm.settlementMethod" type="radio" name="settlementMethod" :value="method" />
               {{ method }}
             </label>
           </div>
 
           <div class="form-line location-line">
             <span>始发地</span>
-            <select class="sheet-input"><option>中国</option></select>
-            <select class="sheet-input"><option>广东省</option></select>
-            <select class="sheet-input"><option>深圳市</option></select>
+            <select v-model="deliveryForm.originCountry" class="sheet-input"><option>中国</option></select>
+            <select v-model="deliveryForm.originProvince" class="sheet-input"><option>广东省</option></select>
+            <select v-model="deliveryForm.originCity" class="sheet-input"><option>深圳市</option></select>
+            <input
+              v-model="deliveryForm.originAddress"
+              class="sheet-input street-input"
+              type="text"
+              placeholder="请输入街道、园区、楼栋等详细地址"
+            />
           </div>
 
           <div class="form-line location-line">
@@ -325,12 +436,12 @@ onMounted(() => {
 
           <label class="form-line textarea-line">
             <span>详细地址<span class="required">*</span></span>
-            <textarea class="sheet-input"></textarea>
+            <textarea v-model="deliveryForm.address" class="sheet-input"></textarea>
           </label>
 
           <label class="form-line textarea-line">
             <span>交付说明</span>
-            <textarea class="sheet-input"></textarea>
+            <textarea v-model="deliveryForm.deliveryNote" class="sheet-input"></textarea>
           </label>
         </div>
 
@@ -340,7 +451,7 @@ onMounted(() => {
             <input
               class="sheet-input readonly-field"
               type="text"
-              value="系统自动生成"
+              :value="deliveryForm.deliveryNo || '待生成'"
               readonly
               aria-readonly="true"
               tabindex="-1"
@@ -348,19 +459,19 @@ onMounted(() => {
           </label>
           <label class="form-line">
             <span>合同号</span>
-            <input class="sheet-input" type="text" />
+            <input v-model="deliveryForm.contractNo" class="sheet-input" type="text" />
           </label>
           <label class="form-line">
             <span>销售订单号</span>
-            <input class="sheet-input" type="text" />
+            <input v-model="deliveryForm.salesOrderNo" class="sheet-input" type="text" />
           </label>
           <label class="form-line">
             <span>指定收货人<span class="required">*</span></span>
-            <input class="sheet-input" type="text" />
+            <input v-model="deliveryForm.receiver" class="sheet-input" type="text" />
           </label>
           <label class="form-line">
             <span>收货人电话<span class="required">*</span></span>
-            <input class="sheet-input" type="tel" />
+            <input v-model="deliveryForm.receiverPhone" class="sheet-input" type="tel" />
           </label>
           <div class="form-line read-line">
             <span>打印时间</span>
@@ -373,7 +484,7 @@ onMounted(() => {
         <div class="import-toolbar">
           <strong>模板导入物料清单</strong>
           <input class="file-picker" type="file" />
-          <span>请点击<a href="#">这里</a>下载模板，并严格按照模板维护数据后再上传</span>
+          <span>请点击 <a href="#">这里</a> 下载模板，并按模板维护数据后上传</span>
         </div>
 
         <div class="sheet-table-wrap">
@@ -494,13 +605,13 @@ onMounted(() => {
               tabindex="-1"
             />
           </label>
-          <label><span>车牌号</span><input class="sheet-input" type="text" /></label>
+          <label><span>车牌号</span><input v-model="deliveryForm.vehicleNo" class="sheet-input" type="text" /></label>
         </div>
 
         <div class="sign-title sender-title">发货方信息</div>
         <div class="sender-fields">
           <label class="sender-picker-field">
-            <span>发货人/电话</span>
+            <span>发货人 电话</span>
             <div class="sender-picker">
               <select v-model="selectedSenderId" class="sheet-input">
                 <option value="">请选择发货人</option>
@@ -519,22 +630,22 @@ onMounted(() => {
               />
             </div>
           </label>
-          <label><span>实际发货日</span><input class="sheet-input" type="date" /></label>
-          <label><span>要求到店日</span><input class="sheet-input" type="date" /></label>
-          <label><span>接货人/电话<span class="required">*</span></span><input class="sheet-input" type="text" /></label>
-          <label><span>签收日期</span><input class="sheet-input" type="date" /></label>
+          <label><span>实际发货日</span><input v-model="deliveryForm.actualDeliveryDate" class="sheet-input" type="date" /></label>
+          <label><span>要求到店日</span><input v-model="deliveryForm.requiredArrivalDate" class="sheet-input" type="date" /></label>
+          <label><span>接货人 电话<span class="required">*</span></span><input v-model="deliveryForm.handoverContact" class="sheet-input" type="text" /></label>
+          <label><span>签收日期</span><input v-model="deliveryForm.signDate" class="sheet-input" type="date" /></label>
         </div>
 
         <div class="sign-title receiver-title">收货方签收</div>
         <label class="receiver-name">
           <span>收货人姓名(盖章)</span>
-          <input class="sheet-input" type="text" />
+          <input v-model="deliveryForm.receiverSignName" class="sheet-input" type="text" />
         </label>
         <label class="receiver-date">
           <span>签收日期</span>
-          <input class="sheet-input" type="date" />
+          <input v-model="deliveryForm.receiverSignDate" class="sheet-input" type="date" />
         </label>
-        <div class="id-note">身份证号码(可写前6位或者后6位)</div>
+        <div class="id-note">身份证号码可写前6位或者后6位</div>
         <div class="exception-note">收货后异常备注</div>
         <div class="sign-note">签收说明：请参考背面签收说明</div>
       </section>

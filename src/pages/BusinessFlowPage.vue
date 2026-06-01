@@ -1,27 +1,35 @@
 <script setup>
 const mainFlow = [
-  { no: '01', title: '发货资料完善', owner: '资料员', note: '维护客户、收货人、物料清单和到货要求' },
-  { no: '02', title: '打印单据', owner: '资料员', note: '打印备料单、发货单和封箱相关单据' },
-  { no: '03', title: '扫码拣配', owner: '包管员', note: '按发货单扫描物料，校验数量和归属' },
-  { no: '04', title: '扫码抽检', owner: '质量员', note: '抽检物料或配件箱，登记通过或不通过' },
-  { no: '05', title: '扫码封箱', owner: '封箱员', note: '绑定箱码，生成箱内物料明细' },
-  { no: '06', title: 'DNA 录入', owner: 'DNA 录入员', note: '大件产品必须录入并校验 DNA 编号' },
-  { no: '07', title: '确认物流取货', owner: '物控/装车岗', note: '确认物流取货，完成装车交接' },
-  { no: '08', title: '开始运输', owner: '物流公司', note: '物流公司输入物流单号，并确认开始运输' },
-  { no: '09', title: '签收', owner: '物流公司', note: '用户提供签收码，物流公司填写后确认签收，可填写备注' },
-  { no: '10', title: '上传对账单', owner: '物流公司', note: '签收完成后上传对账单附件，并补充对账备注' },
-  { no: '11', title: '核对对账单', owner: '仓管财务', note: '仓管财务核对对账单、费用项和异常说明' },
-  { no: '12', title: '报销闭环', owner: '总部财务', note: '自动发起报销，完成费用闭环' }
+  { no: '01', title: '发货资料完善', owner: '出货PC', note: '维护客户、收货人、物料清单和到货要求' },
+  { no: '02', title: '打印单据', owner: '打单员', note: '打印交货单、送货单、调拨单，完成单据交接' },
+  {
+    no: '03',
+    title: 'DNA 录入',
+    branches: [
+      { title: '大件DNA录入', owner: 'DNA 录入员', note: '大件产品录入并校验 DNA 编号' },
+      { title: '配件箱DNA录入', owner: 'DNA 录入员', note: '配件箱录入并校验 DNA 编号' }
+    ]
+  },
+  { no: '04', title: '扫码拣配', owner: '发货员', note: '按发货单扫描物料，校验数量和归属' },
+  { no: '05', title: '扫码抽检', owner: '质量员', note: '检查配件箱内产品数量是否与装箱清单匹配，且质量是否正常。' },
+  { no: '06', title: '封配件箱', owner: '封箱员', note: '绑定箱码，生成箱内物料明细' },
+  { no: '07', title: '交接装车', owner: '物控/装车岗', note: '完成物流交接、装车确认和离厂登记' },
+  { no: '08', title: '确认离厂', owner: '物流公司', note: '物流公司输入物流单号，并确认开始运输' },
+  { no: '09', title: '预约送货', owner: '物流公司', note: '跟用户预约送货，并短信发送签收码' },
+  { no: '10', title: '签收', owner: '物流公司', note: '用户提供签收码，物流公司填写后确认签收，可填写备注' },
+  { no: '11', title: '确认对账单', owner: '物流公司', note: '物流公司确认账单是否有误。' },
+  { no: '12', title: '核对对账单', owner: '仓管财务', note: '仓管财务核对对账单、费用项和异常说明' },
+  { no: '13', title: '报销闭环', owner: '仓管财务', note: '自动发起报销，完成费用闭环' }
 ]
 
 const laneGroups = [
   {
     title: '作业中心',
-    items: ['资料完善', '打印单据', '拣配扫描', '抽检扫描', '封箱贴单', 'DNA 校验']
+    items: ['资料完善', '打印单据', '大件DNA录入', '配件箱DNA录入', '拣配扫描', '抽检扫描', '封配件箱']
   },
   {
     title: '物流协同',
-    items: ['确认物流取货', '录入物流单号', '确认开始运输', '运输中', '客户签收', '上传对账单']
+    items: ['交接装车', '录入物流单号', '确认开始运输', '运输中', '预约送货', '客户签收', '确认对账单']
   },
   {
     title: '费用闭环',
@@ -30,19 +38,21 @@ const laneGroups = [
 ]
 
 const controls = [
-  '未打印不能进入拣配',
-  '拣配、抽检、封箱必须来自扫码记录',
+  '未打印不能进入 DNA 录入',
+  '大件或配件箱未录入 DNA 不能进入扫码拣配',
+  '拣配、抽检、封配件箱必须来自扫码记录',
   '抽检不通过退回拣配或进入异常处理',
-  '大件未录入 DNA 不能确认离厂',
   '物流公司必须填写物流单号后才能确认开始运输',
-  '签收后由物流公司上传对账单，支持填写备注',
+  '预约送货后由系统短信发送签收码',
+  '签收后由物流公司确认对账单是否有误',
   '仓管财务核对对账单后才能进入改价确认或报销',
   '对账有改价时必须多方确认后才能报销'
 ]
 
 const exceptions = [
   { from: '抽检不通过', to: '退回拣配', tone: 'amber' },
-  { from: '封箱异常', to: '撤销箱码/重扫', tone: 'red' },
+  { from: '封配件箱异常', to: '撤销箱码/重扫', tone: 'red' },
+  { from: '预约失败', to: '重新预约送货', tone: 'amber' },
   { from: '作废单据', to: '停止发货，保留费用处理', tone: 'red' },
   { from: '对账改价', to: '物流、工厂、总部财务确认', tone: 'blue' }
 ]
@@ -63,12 +73,29 @@ const exceptions = [
     </section>
 
     <section class="panel process-map" aria-label="发货主流程">
-      <div v-for="(step, index) in mainFlow" :key="step.no" class="process-step" :class="{ branch: step.branch }">
+      <div
+        v-for="(step, index) in mainFlow"
+        :key="step.no"
+        class="process-step"
+        :class="{ branch: step.branch, parallel: step.branches }"
+      >
         <div class="process-card">
           <span class="process-no">{{ step.no }}</span>
-          <strong>{{ step.title }}</strong>
-          <em>{{ step.owner }}</em>
-          <p>{{ step.note }}</p>
+          <template v-if="step.branches">
+            <div class="parallel-title">{{ step.title }}</div>
+            <div class="parallel-branches">
+              <article v-for="branch in step.branches" :key="branch.title" class="parallel-branch">
+                <strong>{{ branch.title }}</strong>
+                <em>{{ branch.owner }}</em>
+                <p>{{ branch.note }}</p>
+              </article>
+            </div>
+          </template>
+          <template v-else>
+            <strong>{{ step.title }}</strong>
+            <em>{{ step.owner }}</em>
+            <p>{{ step.note }}</p>
+          </template>
         </div>
         <span v-if="index < mainFlow.length - 1" class="process-arrow" aria-hidden="true">→</span>
       </div>

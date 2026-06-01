@@ -1,6 +1,7 @@
 ﻿<script setup>
 import { computed, ref, watch } from 'vue'
 import { feeChangeApprovalSteps, feeChangeFlows, feeChangeTypes, materials, shipmentTasks } from '../data/logistics'
+import { idbGet } from '../storage/indexedDb'
 
 const emit = defineEmits(['open-complete', 'open-print', 'open-pick', 'open-qc', 'open-pack', 'open-dna', 'open-leave', 'open-reconcile', 'detail-change'])
 
@@ -14,6 +15,7 @@ const toolbarNotice = ref('')
 const currentPage = ref(1)
 const feeChangeDialogOpen = ref(false)
 const activeFeeTask = ref(null)
+const detailDeliveryInfo = ref(null)
 const feeChangeForm = ref({
   feeType: feeChangeTypes[0],
   amount: '',
@@ -45,7 +47,8 @@ const taskStatusTabs = [
   { key: 'sign', label: '待签收', status: '待签收' },
   { key: 'reconcile', label: '待上传对账单', status: '待上传对账单' },
   { key: 'warehouse-reconcile', label: '待仓管对账', status: '待仓管对账' },
-  { key: 'finance-reconcile', label: '待财务对账', status: '待财务对账' }
+  { key: 'finance-reconcile', label: '待财务对账', status: '待财务对账' },
+  { key: 'voided', label: '作废', status: '作废' }
 ]
 
 const selectedShipment = computed(() => shipmentTasks.find((task) => task.no === selectedTaskNo.value) || null)
@@ -87,6 +90,15 @@ const pagedTasks = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return filteredTasks.value.slice(start, start + pageSize)
 })
+const feeChangeTitle = computed(() => {
+  const date = new Date()
+  const stamp = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-')
+  return `费用变更流程${stamp} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:00`
+})
 
 watch(filteredTasks, () => {
   if (currentPage.value > pageCount.value) currentPage.value = pageCount.value
@@ -101,6 +113,36 @@ const detailSummary = computed(() => {
     { label: '箱数', value: `${task.boxes.total} 箱`, note: `${task.boxes.sealed} 箱已封，${task.boxes.active} 箱进行中` },
     { label: '费用状态', value: task.feeStatus, note: task.status === '待上传对账单' ? '签收后由物流公司上传对账单' : '对账流程按当前状态推进' }
   ]
+})
+
+const detailDeliveryFields = computed(() => {
+  const info = detailDeliveryInfo.value
+  if (!info) return []
+
+  const form = info.deliveryForm || {}
+  return [
+    { label: '收货单位', value: form.receiverCompany },
+    { label: '成本中心', value: info.selectedCostCenter ? `${info.selectedCostCenter.code} ${info.selectedCostCenter.name}` : '' },
+    { label: '发运方式', value: form.deliveryMethod },
+    { label: '结算方式', value: form.settlementMethod },
+    { label: '目的地', value: [form.destinationProvince, form.destinationCity].filter(Boolean).join(' ') },
+    { label: '详细地址', value: form.address },
+    { label: '合同号', value: form.contractNo },
+    { label: '销售订单号', value: form.salesOrderNo },
+    { label: '收货人', value: form.receiver },
+    { label: '收货人电话', value: form.receiverPhone },
+    { label: '承运公司', value: info.carrier?.carrier },
+    { label: '提货人', value: info.pickupPerson?.name },
+    { label: '提货人电话', value: info.pickupPerson?.phone },
+    { label: '车牌号', value: form.vehicleNo },
+    { label: '发货人', value: info.sender?.sender },
+    { label: '发货人电话', value: info.sender?.phone },
+    { label: '实际发货日', value: form.actualDeliveryDate },
+    { label: '要求到店日', value: form.requiredArrivalDate },
+    { label: '接货人电话', value: form.handoverContact },
+    { label: '交付说明', value: form.deliveryNote },
+    { label: '运费合计', value: info.totalFee != null ? Number(info.totalFee).toFixed(2) : '' }
+  ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '')
 })
 
 function taskActions(task) {
@@ -136,6 +178,21 @@ function showTaskDetail(taskNo) {
   selectedTaskNo.value = taskNo
   emit('detail-change', taskNo)
 }
+
+async function loadDetailDeliveryInfo(taskNo) {
+  detailDeliveryInfo.value = null
+  if (!taskNo) return
+
+  try {
+    detailDeliveryInfo.value = await idbGet(`delivery-detail:${taskNo}`)
+  } catch (error) {
+    detailDeliveryInfo.value = null
+  }
+}
+
+watch(selectedTaskNo, (taskNo) => {
+  void loadDetailDeliveryInfo(taskNo)
+})
 
 function showAllTasks() {
   selectedTaskNo.value = ''
@@ -335,7 +392,7 @@ defineExpose({ showAllTasks })
           <table class="delivery-table">
             <thead>
               <tr>
-                <th>发货单号</th>
+                <th>送货单号</th>
                 <th>状态</th>
                 <th>出货申请单号</th>
                 <th>交货单号</th>
@@ -433,6 +490,20 @@ defineExpose({ showAllTasks })
 
       <section class="panel">
         <div class="section-head">
+          <div class="section-title">完善信息</div>
+          <div class="section-extra">来自完善操作保存或提交的内容</div>
+        </div>
+        <div v-if="detailDeliveryFields.length" class="form-grid detail-form-grid">
+          <label v-for="item in detailDeliveryFields" :key="item.label">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </label>
+        </div>
+        <div v-else class="empty-cell">暂无完善操作填写的信息</div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
           <div class="section-title">物料明细</div>
           <div class="section-extra">拣配、抽检、封箱均来自扫码记录</div>
         </div>
@@ -474,28 +545,76 @@ defineExpose({ showAllTasks })
           <button class="dialog-close" type="button" aria-label="关闭" @click="closeFeeChangeDialog">×</button>
         </div>
         <div class="fee-change-body">
-          <div class="fee-change-summary">
-            <span>发货单：{{ activeFeeTask?.no }}</span>
-            <span>承运公司：{{ activeFeeTask?.carrier }}</span>
+          <h2>{{ feeChangeTitle }}</h2>
+
+          <div class="fee-change-sheet">
+            <div class="sheet-field">
+              <span>公司名称</span>
+              <strong>深圳市捷顺科技实业股份有限公司</strong>
+            </div>
+            <div class="sheet-field">
+              <span>公司代码</span>
+              <strong>1000</strong>
+            </div>
+            <div class="sheet-field">
+              <span>申请人</span>
+              <strong>-</strong>
+            </div>
+            <div class="sheet-field">
+              <span>申请人所属组织</span>
+              <strong>-</strong>
+            </div>
+            <div class="sheet-field">
+              <span>发货单号</span>
+              <strong>{{ activeFeeTask?.no }}</strong>
+            </div>
+            <div class="sheet-field">
+              <span>承运公司</span>
+              <strong>{{ activeFeeTask?.carrier }}</strong>
+            </div>
+            <label class="sheet-field">
+              <span>费用类型</span>
+              <select v-model="feeChangeForm.feeType">
+                <option v-for="type in feeChangeTypes" :key="type" :value="type">{{ type }}</option>
+              </select>
+            </label>
+            <label class="sheet-field">
+              <span>变更金额</span>
+              <input v-model="feeChangeForm.amount" type="number" min="0.01" step="0.01" placeholder="请输入金额" />
+            </label>
+            <div class="sheet-field">
+              <span>合同编号</span>
+              <strong>{{ activeFeeTask?.contractNo || '-' }}</strong>
+            </div>
+            <label class="sheet-field wide">
+              <span>变更原因</span>
+              <textarea v-model="feeChangeForm.reason" rows="3" placeholder="请填写费用变更原因"></textarea>
+            </label>
           </div>
-          <label class="filter-field">
-            <span>费用类型</span>
-            <select v-model="feeChangeForm.feeType">
-              <option v-for="type in feeChangeTypes" :key="type" :value="type">{{ type }}</option>
-            </select>
-          </label>
-          <label class="filter-field">
-            <span>变更金额</span>
-            <input v-model="feeChangeForm.amount" type="number" min="0.01" step="0.01" placeholder="请输入金额" />
-          </label>
-          <label class="filter-field">
-            <span>变更原因</span>
-            <textarea v-model="feeChangeForm.reason" rows="4" placeholder="请填写费用变更原因"></textarea>
-          </label>
-          <div class="approval-route" aria-label="审批路径">
-            <span v-for="(step, index) in feeChangeApprovalSteps" :key="step">
-              {{ step }}<i v-if="index < feeChangeApprovalSteps.length - 1">→</i>
-            </span>
+
+          <div class="fee-flow-panel" aria-label="费用变更审批路径">
+            <div class="fee-flow-node start">开始节点</div>
+            <div class="fee-flow-node active">起草节点</div>
+            <div class="fee-flow-node">物流公司审核</div>
+            <div class="fee-flow-node current">仓库审核</div>
+            <div class="fee-flow-node">总部财务审核</div>
+            <div class="fee-flow-node end">结束节点</div>
+          </div>
+
+          <div class="fee-approval-panel">
+            <div class="section-title">流程审批</div>
+            <div class="approval-actions" role="radiogroup" aria-label="审批操作">
+              <label><input type="radio" name="fee-approve-action" checked /> 通过</label>
+              <label><input type="radio" name="fee-approve-action" /> 转办</label>
+              <label><input type="radio" name="fee-approve-action" /> 沟通</label>
+              <label><input type="radio" name="fee-approve-action" /> 驳回</label>
+              <label><input type="radio" name="fee-approve-action" /> 传阅</label>
+            </div>
+            <label class="approval-comment">
+              <span>处理意见</span>
+              <textarea rows="2" placeholder="同意"></textarea>
+            </label>
+            <div class="approval-next">即将流向：{{ feeChangeApprovalSteps[0] }}</div>
           </div>
         </div>
         <div class="org-dialog-foot">

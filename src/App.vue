@@ -14,8 +14,6 @@ import PickScanPage from './pages/PickScanPage.vue'
 import PrintOperationPage from './pages/PrintOperationPage.vue'
 import QcScanPage from './pages/QcScanPage.vue'
 import ReconcilePage from './pages/ReconcilePage.vue'
-import ReimbursePage from './pages/ReimbursePage.vue'
-import WaybillPage from './pages/WaybillPage.vue'
 import WorkbenchPage from './pages/WorkbenchPage.vue'
 
 const pageMap = {
@@ -30,9 +28,7 @@ const pageMap = {
   packScan: PackScanPage,
   dna: DnaPage,
   leaveConfirm: LeaveConfirmPage,
-  waybill: WaybillPage,
   reconcile: ReconcilePage,
-  reimburse: ReimbursePage,
   freightConfig: FreightConfigPage,
   materials: MaterialPage,
   carriers: CarrierPage
@@ -57,9 +53,7 @@ const navGroups = [
   {
     title: '物流费用',
     items: [
-      { key: 'waybill', label: '物流单号' },
       { key: 'reconcile', label: '对账单' },
-      { key: 'reimburse', label: '报销跟踪' },
       { key: 'freightConfig', label: '物流配置' }
     ]
   },
@@ -224,7 +218,7 @@ function confirmPickFromTopbar() {
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">LS</span>
-        <span>鐗╂祦杩囩▼绠℃帶</span>
+        <span>物流过程管控</span>
       </div>
 
       <template v-for="group in navGroups" :key="group.title">
