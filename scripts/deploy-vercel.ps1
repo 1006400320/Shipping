@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$EnvFile = ".env.deploy",
-  [switch]$Preview
+  [switch]$Preview,
+  [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,9 +57,11 @@ if ([string]::IsNullOrWhiteSpace($env:VERCEL_TOKEN)) {
   throw "Missing VERCEL_TOKEN. Set it in $EnvFile or as a process environment variable."
 }
 
-& npm.cmd run build
-if ($LASTEXITCODE -ne 0) {
-  throw "Build failed with exit code $LASTEXITCODE."
+if (-not $SkipBuild) {
+  & npm.cmd run build
+  if ($LASTEXITCODE -ne 0) {
+    throw "Build failed with exit code $LASTEXITCODE."
+  }
 }
 
 $deployArgs = @("vercel", "--yes", "--token", $env:VERCEL_TOKEN)
@@ -66,7 +69,30 @@ if (-not $Preview) {
   $deployArgs += "--prod"
 }
 
-& npx.cmd @deployArgs
-if ($LASTEXITCODE -ne 0) {
-  throw "Vercel deploy failed with exit code $LASTEXITCODE."
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$deployOutput = & npx.cmd @deployArgs 2>&1
+$deployExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+$deployOutput | ForEach-Object { Write-Host $_ }
+
+if ($deployExitCode -ne 0) {
+  throw "Vercel deploy failed with exit code $deployExitCode."
+}
+
+$deploymentUrl = $deployOutput |
+  Where-Object { $_ -match "(Production|Aliased)\s+https://[^\s]+" } |
+  ForEach-Object { [regex]::Match($_, "https://[^\s]+").Value.TrimEnd('"', "'", ",") } |
+  Select-Object -Last 1
+
+if (-not $deploymentUrl) {
+  $deploymentUrl = $deployOutput |
+    Where-Object { $_ -match '"url":\s*"https://[^"]+"' } |
+    ForEach-Object { [regex]::Match($_, 'https://[^"]+').Value } |
+    Select-Object -Last 1
+}
+
+if ($deploymentUrl) {
+  Write-Host ""
+  Write-Host "Deployment URL: $deploymentUrl"
 }
