@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { feeChangeApprovalSteps, feeChangeFlows, feeChangeTypes, materials, shipmentTasks } from '../data/logistics'
 import { idbGet } from '../storage/indexedDb'
 
@@ -12,6 +12,14 @@ const startDate = ref('2026-02-01')
 const endDate = ref('2026-02-28')
 const carrierFilter = ref('')
 const toolbarNotice = ref('')
+const pickScanDialogOpen = ref(false)
+const pickShipmentScanInput = ref(null)
+const pickShipmentScanCode = ref('')
+const pickScanMessage = ref('请使用扫码枪扫描送货单号。')
+const pickScanMessageType = ref('neutral')
+const selectedTaskNos = ref([])
+const alertDialogOpen = ref(false)
+const alertDialogMessage = ref('')
 const currentPage = ref(1)
 const feeChangeDialogOpen = ref(false)
 const activeFeeTask = ref(null)
@@ -90,6 +98,8 @@ const pagedTasks = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return filteredTasks.value.slice(start, start + pageSize)
 })
+const selectedTasks = computed(() => shipmentTasks.filter((task) => selectedTaskNos.value.includes(task.no)))
+const allPagedSelected = computed(() => pagedTasks.value.length > 0 && pagedTasks.value.every((task) => selectedTaskNos.value.includes(task.no)))
 const feeChangeTitle = computed(() => {
   const date = new Date()
   const stamp = [
@@ -216,6 +226,93 @@ function runSearch() {
 
 function exportTasks() {
   toolbarNotice.value = `已导出当前 ${filteredTasks.value.length} 条数据`
+}
+
+function toggleAllPagedTasks() {
+  const pagedNos = pagedTasks.value.map((task) => task.no)
+  if (allPagedSelected.value) {
+    selectedTaskNos.value = selectedTaskNos.value.filter((no) => !pagedNos.includes(no))
+    return
+  }
+
+  selectedTaskNos.value = [...new Set([...selectedTaskNos.value, ...pagedNos])]
+}
+
+function batchPrintTasks() {
+  if (selectedTasks.value.length === 0) {
+    showAlertDialog('请先勾选需要批量打印的送货单')
+    return
+  }
+
+  const invalidTasks = selectedTasks.value.filter((task) => task.status !== '待打印')
+  if (invalidTasks.length > 0) {
+    showAlertDialog(`批量打印失败：${invalidTasks.map((task) => `${task.no}(${task.status})`).join('、')} 不是待打印状态`)
+    return
+  }
+
+  emit('open-print', selectedTaskNos.value.join(','))
+}
+
+function showAlertDialog(message) {
+  alertDialogMessage.value = message
+  alertDialogOpen.value = true
+}
+
+function closeAlertDialog() {
+  alertDialogOpen.value = false
+}
+
+function openPickScanDialog() {
+  pickShipmentScanCode.value = ''
+  pickScanMessage.value = '请使用扫码枪扫描送货单号。'
+  pickScanMessageType.value = 'neutral'
+  pickScanDialogOpen.value = true
+  nextTick(() => pickShipmentScanInput.value?.focus())
+}
+
+function closePickScanDialog() {
+  pickScanDialogOpen.value = false
+}
+
+function normalizeShipmentScanCode(value) {
+  return (
+    String(value || '')
+      .trim()
+      .toUpperCase()
+      .split(/[|,;\s]+/)
+      .find((part) => /^\d{10}$/.test(part)) || ''
+  )
+}
+
+function submitPickShipmentScan() {
+  const shipmentNo = normalizeShipmentScanCode(pickShipmentScanCode.value)
+
+  if (!shipmentNo) {
+    pickScanMessage.value = '扫码内容为空或格式不正确，请扫描 10 位送货单号。'
+    pickScanMessageType.value = 'danger'
+    nextTick(() => pickShipmentScanInput.value?.select())
+    return
+  }
+
+  const task = shipmentTasks.find((item) => item.no === shipmentNo)
+  if (!task) {
+    pickScanMessage.value = `扫码异常：${shipmentNo} 不存在。`
+    pickScanMessageType.value = 'danger'
+    nextTick(() => pickShipmentScanInput.value?.select())
+    return
+  }
+
+  if (task.status !== '待拣配') {
+    pickScanMessage.value = `扫码异常：${shipmentNo} 当前状态为${task.status}，不能开始拣配。`
+    pickScanMessageType.value = 'danger'
+    nextTick(() => pickShipmentScanInput.value?.select())
+    return
+  }
+
+  pickScanMessage.value = `扫码成功：${shipmentNo}，正在进入拣配页面。`
+  pickScanMessageType.value = 'success'
+  closePickScanDialog()
+  emit('open-pick', task.no)
 }
 
 function openLeaveTask(task) {
@@ -384,6 +481,8 @@ defineExpose({ showAllTasks })
           <button class="btn primary" type="button" @click="runSearch">查询</button>
           <button class="btn" type="button" @click="resetFilters">重置</button>
           <button class="btn" type="button" @click="exportTasks">导出</button>
+          <button class="btn create-btn" type="button" @click="batchPrintTasks">批量打印</button>
+          <button class="btn primary" type="button" @click="openPickScanDialog">开始拣配</button>
         </div>
 
         <div v-if="toolbarNotice" class="toolbar-notice">{{ toolbarNotice }}</div>
@@ -392,6 +491,9 @@ defineExpose({ showAllTasks })
           <table class="delivery-table">
             <thead>
               <tr>
+                <th class="select-cell">
+                  <input type="checkbox" :checked="allPagedSelected" aria-label="选择当前页" @change="toggleAllPagedTasks" />
+                </th>
                 <th>送货单号</th>
                 <th>状态</th>
                 <th>出货申请单号</th>
@@ -406,6 +508,9 @@ defineExpose({ showAllTasks })
             </thead>
             <tbody>
               <tr v-for="task in pagedTasks" :key="task.no">
+                <td class="select-cell">
+                  <input v-model="selectedTaskNos" type="checkbox" :value="task.no" :aria-label="`选择送货单 ${task.no}`" />
+                </td>
                 <td class="link-cell">
                   <button class="text-link" type="button" @click="showTaskDetail(task.no)">{{ task.no }}</button>
                 </td>
@@ -424,6 +529,8 @@ defineExpose({ showAllTasks })
                     class="action-link"
                     :class="{ warn: action === '作废' }"
                     type="button"
+                    :title="action"
+                    :aria-label="action"
                     @click="handleTaskAction(action, task)"
                   >
                     {{ action }}
@@ -431,7 +538,7 @@ defineExpose({ showAllTasks })
                 </td>
               </tr>
               <tr v-if="filteredTasks.length === 0">
-                <td class="empty-cell" colspan="10">暂无符合条件的发货单</td>
+                <td class="empty-cell" colspan="11">暂无符合条件的交货单</td>
               </tr>
             </tbody>
           </table>
@@ -472,7 +579,7 @@ defineExpose({ showAllTasks })
         <article class="panel shipment-card">
           <div class="shipment-title">
             <div>
-              <h1>发货单 {{ selectedShipment.no }}</h1>
+              <h1>交货单 {{ selectedShipment.no }}</h1>
               <p class="subline">
                 客户：{{ selectedShipment.customer }} | 收货人：{{ selectedShipment.receiver }} {{ selectedShipment.phone }} |
                 地址：{{ selectedShipment.address }}
@@ -565,7 +672,7 @@ defineExpose({ showAllTasks })
               <strong>-</strong>
             </div>
             <div class="sheet-field">
-              <span>发货单号</span>
+              <span>交货单号</span>
               <strong>{{ activeFeeTask?.no }}</strong>
             </div>
             <div class="sheet-field">
@@ -620,6 +727,49 @@ defineExpose({ showAllTasks })
         <div class="org-dialog-foot">
           <button class="btn" type="button" @click="closeFeeChangeDialog">取消</button>
           <button class="btn primary" type="button" @click="submitFeeChangeFlow">提交审批</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="pickScanDialogOpen" class="modal-backdrop">
+      <section class="org-dialog pick-scan-dialog" role="dialog" aria-modal="true" aria-label="开始拣配">
+        <div class="org-dialog-head">
+          <strong>开始拣配</strong>
+          <button class="dialog-close" type="button" aria-label="关闭" @click="closePickScanDialog">×</button>
+        </div>
+        <form class="pick-scan-body" @submit.prevent="submitPickShipmentScan">
+          <label class="scan-input-wrap">
+            <input
+              ref="pickShipmentScanInput"
+              v-model="pickShipmentScanCode"
+              class="scan-input"
+              type="search"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="请扫描送货单号"
+              aria-label="送货单号扫码输入"
+              @focus="pickShipmentScanInput?.select()"
+            />
+            <button class="scan-button" type="submit">确认</button>
+          </label>
+          <div class="scan-alert" :class="pickScanMessageType">{{ pickScanMessage }}</div>
+        </form>
+        <div class="org-dialog-foot">
+          <button class="btn" type="button" @click="closePickScanDialog">取消</button>
+          <button class="btn primary" type="button" @click="submitPickShipmentScan">进入拣配</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="alertDialogOpen" class="modal-backdrop">
+      <section class="org-dialog alert-dialog" role="alertdialog" aria-modal="true" aria-label="提示">
+        <div class="org-dialog-head">
+          <strong>提示</strong>
+          <button class="dialog-close" type="button" aria-label="关闭" @click="closeAlertDialog">×</button>
+        </div>
+        <div class="alert-dialog-body">{{ alertDialogMessage }}</div>
+        <div class="org-dialog-foot">
+          <button class="btn primary" type="button" @click="closeAlertDialog">确定</button>
         </div>
       </section>
     </div>

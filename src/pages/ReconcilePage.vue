@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref } from 'vue'
 import { feeItems } from '../data/logistics'
 
@@ -314,7 +314,7 @@ function approveHeadquartersFinance() {
       <section class="page-grid">
         <article class="panel page-hero">
           <h1>对账单列表</h1>
-          <p class="subline">按对账单维度管理物流上传记录，一张对账单可解析并关联多个发货单号。</p>
+          <p class="subline">按对账单维度管理物流上传记录，一张对账单可解析并关联多个交货单号。</p>
         </article>
         <article class="panel metric">
           <div class="metric-label">待仓管财务核对</div>
@@ -341,7 +341,7 @@ function approveHeadquartersFinance() {
                 <th>物流公司</th>
                 <th>账期</th>
                 <th>文件名</th>
-                <th>发货单数</th>
+                <th>交货单数</th>
                 <th>费用合计</th>
                 <th>状态</th>
                 <th>上传时间</th>
@@ -375,7 +375,7 @@ function approveHeadquartersFinance() {
           <p class="subline">物流公司上传对账单后生成明细数据，再由仓管财务和总部财务依次核对。</p>
         </article>
         <article class="panel metric">
-          <div class="metric-label">发货单数量</div>
+          <div class="metric-label">交货单数量</div>
           <div class="metric-value">{{ deliveryNoCount || '-' }}</div>
           <div class="metric-note">一张对账单可包含多单</div>
         </article>
@@ -389,7 +389,7 @@ function approveHeadquartersFinance() {
       <section v-if="isCreatingStatement" class="panel">
         <div class="section-head">
           <div class="section-title">物流公司上传</div>
-          <div class="section-extra">对账单维度上传，解析后关联多个发货单号</div>
+          <div class="section-extra">对账单维度上传，解析后关联多个交货单号</div>
         </div>
         <div class="reconcile-upload-grid">
           <div class="statement-upload-flow">
@@ -523,7 +523,7 @@ function approveHeadquartersFinance() {
           <div class="review-step" :class="{ active: reviewStage === '待仓管财务核对', done: ['待总部财务核对', '已完成'].includes(reviewStage) }">
             <span>2</span>
             <strong>仓管财务核对</strong>
-            <small>核对费用项、发货单号、附件和备注</small>
+            <small>核对费用项、交货单号、附件和备注</small>
           </div>
           <div class="review-step" :class="{ active: reviewStage === '待总部财务核对', done: reviewStage === '已完成' }">
             <span>3</span>

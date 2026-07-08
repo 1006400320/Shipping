@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref, watchEffect } from 'vue'
 import { materials, shipmentTasks } from '../data/logistics'
 
@@ -87,7 +87,7 @@ const checks = computed(() =>
     ? []
     : isTransportMode.value
     ? [
-        { key: 'materials', label: '物料明细已与发货单核对一致' },
+        { key: 'materials', label: '物料明细已与交货单核对一致' },
         { key: 'boxes', label: '配件箱数量、箱码、封签已核对无误' },
         { key: 'vehicle', label: '车辆信息与物流公司派车信息一致' },
         { key: 'photo', label: '已拍照留存物料或装车现场照片' }
@@ -95,7 +95,7 @@ const checks = computed(() =>
     : [
         { key: 'carrier', label: '承运公司与提货人身份已核对' },
         { key: 'boxes', label: '配件箱数、箱码、封签完整无破损' },
-        { key: 'docs', label: '发货单、交接单随货资料齐全' },
+        { key: 'docs', label: '交货单、交接单随货资料齐全' },
         { key: 'photo', label: '已拍照留存交接现场或装车照片' }
       ]
 )
@@ -181,7 +181,7 @@ function confirmAction() {
     <section class="panel pickup-confirm-panel pickup-redesign">
       <header class="pickup-ticket-head">
         <div>
-          <span class="label">发货单号</span>
+          <span class="label">交货单号</span>
           <strong>{{ task.no }}</strong>
         </div>
         <div>

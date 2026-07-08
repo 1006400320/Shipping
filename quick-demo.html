@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -554,7 +554,7 @@
         </div>
         <div class="actions" id="topActions">
           <button class="btn" type="button">导出</button>
-          <button class="btn primary" type="button">新建发货单</button>
+          <button class="btn primary" type="button">新建交货单</button>
         </div>
       </header>
 
@@ -562,7 +562,7 @@
         <section class="view active" id="listView">
           <section class="list-metrics">
             <article class="panel metric">
-              <div class="metric-label">今日发货单</div>
+              <div class="metric-label">今日交货单</div>
               <div class="metric-value">16</div>
               <div class="note">6 单待处理</div>
             </article>
@@ -584,7 +584,7 @@
           </section>
 
           <section class="panel toolbar">
-            <input id="searchInput" type="search" placeholder="发货单号 / 客户 / 收货城市">
+            <input id="searchInput" type="search" placeholder="交货单号 / 客户 / 收货城市">
             <select id="statusFilter" aria-label="状态筛选">
               <option value="all">全部状态</option>
               <option value="running">作业中</option>
@@ -606,7 +606,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>发货单号</th>
+                    <th>交货单号</th>
                     <th>客户</th>
                     <th>收货城市</th>
                     <th>物料进度</th>
@@ -620,14 +620,14 @@
                 <tbody id="shipmentRows"></tbody>
               </table>
             </div>
-            <div class="empty" id="emptyState">暂无匹配发货单</div>
+            <div class="empty" id="emptyState">暂无匹配交货单</div>
           </section>
         </section>
 
         <section class="view" id="detailView">
           <section class="detail-grid">
             <article class="panel hero">
-              <h2>发货单 FH202605180001</h2>
+              <h2>交货单 FH202605180001</h2>
               <p class="sub">客户：深圳捷顺项目部 | 收货人：王工 | 当前节点：扫码封箱</p>
               <div class="tags">
                 <span class="tag green">资料已完善</span>
@@ -836,17 +836,17 @@
       breadcrumb.textContent = "发货管理 / 发货工作台";
       topActions.innerHTML = `
         <button class="btn" type="button">导出</button>
-        <button class="btn primary" type="button">新建发货单</button>
+        <button class="btn primary" type="button">新建交货单</button>
       `;
     }
 
     function setTopbarForDetail() {
-      pageTitle.textContent = "发货单 FH202605180001";
+      pageTitle.textContent = "交货单 FH202605180001";
       breadcrumb.textContent = "发货管理 / 发货工作台 / FH202605180001";
       topActions.innerHTML = `
         <button class="btn" type="button" id="backToList">返回列表</button>
-        <button class="btn" type="button">打印备料单</button>
-        <button class="btn" type="button">打印封箱单</button>
+        <button class="btn" type="button">打印送货单</button>
+        <button class="btn" type="button">打印调拨单</button>
         <button class="btn danger" type="button">作废申请</button>
         <button class="btn primary" type="button">确认当前节点</button>
       `;

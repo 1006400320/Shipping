@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
 import { shipmentTasks } from '../data/logistics'
 
@@ -53,7 +53,7 @@ const cards = computed(() => {
       tone: 'red',
       mark: '04',
       title: '封箱贴单',
-      subtitle: '扫描箱码、物料码和封箱单码，完成装箱绑定与贴单。',
+      subtitle: '扫描箱码、物料码和调拨单码，完成装箱绑定与贴单。',
       actionLabel: '进入封箱',
       statLabel: '待封箱贴单',
       statValue: `${shipmentTasks.filter((task) => task.status === '待封箱贴单').length} 单`,

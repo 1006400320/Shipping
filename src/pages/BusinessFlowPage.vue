@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const mainFlow = [
   { no: '01', title: '发货资料完善', owner: '出货PC', note: '维护客户、收货人、物料清单和到货要求' },
   { no: '02', title: '打印单据', owner: '打单员', note: '打印交货单、送货单、调拨单，完成单据交接' },
@@ -10,7 +10,7 @@ const mainFlow = [
       { title: '配件箱DNA录入', owner: 'DNA 录入员', note: '配件箱录入并校验 DNA 编号' }
     ]
   },
-  { no: '04', title: '扫码拣配', owner: '发货员', note: '按发货单扫描物料，校验数量和归属' },
+  { no: '04', title: '扫码拣配', owner: '发货员', note: '按交货单扫描物料，校验数量和归属' },
   { no: '05', title: '扫码抽检', owner: '质量员', note: '检查配件箱内产品数量是否与装箱清单匹配，且质量是否正常。' },
   { no: '06', title: '封配件箱', owner: '封箱员', note: '绑定箱码，生成箱内物料明细' },
   { no: '07', title: '交接装车', owner: '物控/装车岗', note: '完成物流交接、装车确认和离厂登记' },

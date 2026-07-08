@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { boxes, materials } from '../data/logistics'
 
@@ -11,7 +11,7 @@ const props = defineProps({
 
 const scanInput = ref(null)
 const scanCode = ref('BOX-20260518-003')
-const latestMessage = ref('封箱贴单支持扫描箱码、65 开头 8 位物料编码、封箱单码。')
+const latestMessage = ref('封箱贴单支持扫描箱码、65 开头 8 位物料编码、调拨单码。')
 const latestMessageType = ref('neutral')
 const packer = '李明'
 const deviceNo = 'SCAN-PACK-01'
@@ -95,9 +95,9 @@ function submitScan() {
   } else if (/^PKG-[A-Z0-9-]+$/.test(code)) {
     packageNo.value = code
     labelBound.value = true
-    latestMessage.value = `封箱单码绑定成功：${code}，可打印并贴单。`
+    latestMessage.value = `调拨单码绑定成功：${code}，可打印并贴单。`
     latestMessageType.value = 'success'
-    addTimeline('封箱单码绑定成功', `${code} 已绑定 ${activeBoxNo.value}`, 'success')
+    addTimeline('调拨单码绑定成功', `${code} 已绑定 ${activeBoxNo.value}`, 'success')
   } else if (/^65\d{6}$/.test(code)) {
     const row = packRows.value.find((item) => item.code === code)
     if (!row) {
@@ -115,7 +115,7 @@ function submitScan() {
       addTimeline('物料装箱成功', `${code} 已绑定 ${activeBoxNo.value}`, 'success')
     }
   } else {
-    failScan(code, '不是有效箱码、封箱单码或物料编码。')
+    failScan(code, '不是有效箱码、调拨单码或物料编码。')
   }
 
   focusScannerInput()
@@ -194,9 +194,9 @@ onBeforeUnmount(() => {
             <div class="info-list">
               <div class="info-row"><span class="label">箱状态</span><span class="value">{{ activeBox?.status || '封箱中' }}</span></div>
               <div class="info-row"><span class="label">封箱员</span><span class="value">{{ packer }}</span></div>
-              <div class="info-row"><span class="label">封箱单码</span><span class="value">{{ packageNo }} {{ labelBound ? '已绑定' : '待绑定' }}</span></div>
+              <div class="info-row"><span class="label">调拨单码</span><span class="value">{{ packageNo }} {{ labelBound ? '已绑定' : '待绑定' }}</span></div>
               <div class="info-row"><span class="label">箱内数量</span><span class="value">{{ totalPacked }} / {{ totalPlanned }}</span></div>
-              <div class="info-row"><span class="label">下一步</span><span class="value">{{ pendingCount ? `补扫 ${pendingCount} 件物料` : '打印封箱单并贴单' }}</span></div>
+              <div class="info-row"><span class="label">下一步</span><span class="value">{{ pendingCount ? `补扫 ${pendingCount} 件物料` : '打印调拨单并贴单' }}</span></div>
             </div>
           </section>
         </div>
@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
         <section class="panel material-panel">
           <div class="section-head">
             <div class="section-title">物料装箱明细</div>
-            <div class="section-extra">箱码、物料编码、封箱单码均来自扫码记录</div>
+            <div class="section-extra">箱码、物料编码、调拨单码均来自扫码记录</div>
           </div>
           <div class="table-wrap">
             <table class="pack-table">

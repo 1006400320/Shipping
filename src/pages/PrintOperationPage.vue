@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, ref } from 'vue'
 import { materials, shipmentTasks } from '../data/logistics'
 
@@ -9,23 +9,30 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['back-to-workbench', 'open-pick'])
-
 const selectedDoc = ref('delivery')
-const printNotice = ref('')
+const noticeDialogOpen = ref(false)
+const noticeDialogMessage = ref('')
 
-const task = computed(() => shipmentTasks.find((item) => item.no === props.taskNo) || shipmentTasks.find((item) => item.status === '待打印') || shipmentTasks[0])
+const selectedTaskNos = computed(() => props.taskNo.split(',').map((item) => item.trim()).filter(Boolean))
+const selectedTasks = computed(() => {
+  const tasks = shipmentTasks.filter((item) => selectedTaskNos.value.includes(item.no))
+  if (tasks.length) return tasks
+
+  const fallback = shipmentTasks.find((item) => item.status === '待打印') || shipmentTasks[0]
+  return fallback ? [fallback] : []
+})
+const activeTask = computed(() => selectedTasks.value[0] || shipmentTasks[0])
 const printableMaterials = computed(() => materials.slice(0, 10))
 const docTitle = computed(() => {
-  if (selectedDoc.value === 'prepare') return '备料单'
-  if (selectedDoc.value === 'packing') return '封箱单'
-  return '发货单'
+  if (selectedDoc.value === 'prepare') return '送货单'
+  if (selectedDoc.value === 'packing') return '调拨单'
+  return '交货单'
 })
 
 const docOptions = [
-  { key: 'delivery', label: '发货单' },
-  { key: 'prepare', label: '备料单' },
-  { key: 'packing', label: '封箱单' }
+  { key: 'delivery', label: '交货单' },
+  { key: 'prepare', label: '送货单' },
+  { key: 'packing', label: '调拨单' }
 ]
 
 function formatDateTime() {
@@ -35,16 +42,27 @@ function formatDateTime() {
 }
 
 function markPrinted() {
-  if (!task.value) return
+  if (!selectedTasks.value.length) return
 
-  task.value.status = '待拣配'
-  task.value.currentNode = '拣配'
-  printNotice.value = `${task.value.no} 已确认打印，状态已流转为待拣配`
+  selectedTasks.value.forEach((task) => {
+    task.status = '待拣配'
+    task.currentNode = '拣配'
+  })
+  showNoticeDialog(`${selectedTasks.value.map((task) => task.no).join('、')} 已确认打印，状态已流转为待拣配`)
 }
 
 function printCurrentDoc() {
-  printNotice.value = `正在打印 ${task.value.no} ${docTitle.value}`
   nextTick(() => window.print())
+}
+
+function showNoticeDialog(message) {
+  noticeDialogMessage.value = message
+  noticeDialogOpen.value = true
+}
+
+function closeNoticeDialog() {
+  noticeDialogOpen.value = false
+  noticeDialogMessage.value = ''
 }
 </script>
 
@@ -53,13 +71,11 @@ function printCurrentDoc() {
     <section class="panel print-operation-toolbar">
       <div>
         <h1>打印操作页</h1>
-        <p class="subline">发货单 {{ task.no }}，确认打印后进入拣配节点。</p>
+        <p class="subline">已选择 {{ selectedTasks.length }} 个送货单：{{ selectedTasks.map((task) => task.no).join('、') }}</p>
       </div>
       <div class="print-operation-actions">
-        <button class="btn" type="button" @click="emit('back-to-workbench')">返回作业台</button>
         <button class="btn" type="button" @click="printCurrentDoc">打印当前单据</button>
         <button class="btn primary" type="button" @click="markPrinted">确认已打印</button>
-        <button class="btn primary" type="button" @click="emit('open-pick', task.no)">进入拣配</button>
       </div>
     </section>
 
@@ -74,13 +90,12 @@ function printCurrentDoc() {
           @click="selectedDoc = doc.key"
         >
           <strong>{{ doc.label }}</strong>
-          <span>{{ doc.key === 'packing' ? `${task.boxes.total} 箱` : `${task.progress.total} 项物料` }}</span>
+          <span>{{ doc.key === 'packing' ? `${activeTask.boxes.total} 箱` : `${activeTask.progress.total} 项物料` }}</span>
         </button>
       </aside>
 
       <section class="panel print-preview-panel">
-        <div v-if="printNotice" class="toolbar-notice">{{ printNotice }}</div>
-        <div class="delivery-print-page print-operation-sheet">
+        <div v-for="task in selectedTasks" :key="task.no" class="delivery-print-page print-operation-sheet">
           <header class="print-delivery-header">
             <div class="print-brand">
               <span class="brand-mark">LS</span>
@@ -99,8 +114,8 @@ function printCurrentDoc() {
 
           <section class="print-info-grid">
             <div class="print-info-list">
-              <div><span>发货单号</span><strong>{{ task.no }}</strong></div>
-              <div><span>出货申请单</span><strong>{{ task.applicationNo }}</strong></div>
+              <div><span>送货单号</span><strong>{{ task.no }}</strong></div>
+              <div><span>出货申请单号</span><strong>{{ task.applicationNo }}</strong></div>
               <div><span>交货单号</span><strong>{{ task.deliveryNo || '-' }}</strong></div>
               <div><span>调拨单号</span><strong>{{ task.transferNo || '-' }}</strong></div>
               <div><span>合同号</span><strong>{{ task.contractNo }}</strong></div>
@@ -151,5 +166,18 @@ function printCurrentDoc() {
         </div>
       </section>
     </section>
+
+    <div v-if="noticeDialogOpen" class="modal-backdrop">
+      <section class="org-dialog alert-dialog" role="alertdialog" aria-modal="true" aria-label="提示">
+        <div class="org-dialog-head">
+          <strong>提示</strong>
+          <button class="dialog-close" type="button" aria-label="关闭" @click="closeNoticeDialog">×</button>
+        </div>
+        <div class="alert-dialog-body">{{ noticeDialogMessage }}</div>
+        <div class="org-dialog-foot">
+          <button class="btn primary" type="button" @click="closeNoticeDialog">知道了</button>
+        </div>
+      </section>
+    </div>
   </section>
 </template>

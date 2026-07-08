@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { carrierConfigs, senderConfigs, shipmentTasks } from '../data/logistics'
 import { idbGet, idbSet } from '../storage/indexedDb'
@@ -271,7 +271,7 @@ function buildDeliveryPayload() {
 }
 
 async function saveDeliveryDetail() {
-  if (!props.taskNo) throw new Error('缺少发货单号，无法保存完善信息')
+  if (!props.taskNo) throw new Error('缺少交货单号，无法保存完善信息')
   const payload = buildDeliveryPayload()
   await idbSet(getDeliveryDetailKey(), payload)
   return payload

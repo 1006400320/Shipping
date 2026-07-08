@@ -1,14 +1,13 @@
 ﻿<script setup>
 import { computed, ref } from 'vue'
 import BusinessFlowPage from './pages/BusinessFlowPage.vue'
-import CarrierPage from './pages/CarrierPage.vue'
+import AccessoryBoxManagePage from './pages/AccessoryBoxManagePage.vue'
 import CompleteDeliveryPage from './pages/CompleteDeliveryPage.vue'
 import DnaPage from './pages/DnaPage.vue'
 import EmployeeMobilePage from './pages/EmployeeMobilePage.vue'
 import FreightConfigPage from './pages/FreightConfigPage.vue'
 import LeaveConfirmPage from './pages/LeaveConfirmPage.vue'
 import LogisticsMobilePage from './pages/LogisticsMobilePage.vue'
-import MaterialPage from './pages/MaterialPage.vue'
 import PackScanPage from './pages/PackScanPage.vue'
 import PickScanPage from './pages/PickScanPage.vue'
 import PrintOperationPage from './pages/PrintOperationPage.vue'
@@ -18,6 +17,7 @@ import WorkbenchPage from './pages/WorkbenchPage.vue'
 
 const pageMap = {
   businessFlow: BusinessFlowPage,
+  accessoryBoxes: AccessoryBoxManagePage,
   complete: CompleteDeliveryPage,
   employeeMobile: EmployeeMobilePage,
   logisticsMobile: LogisticsMobilePage,
@@ -29,10 +29,9 @@ const pageMap = {
   dna: DnaPage,
   leaveConfirm: LeaveConfirmPage,
   reconcile: ReconcilePage,
-  freightConfig: FreightConfigPage,
-  materials: MaterialPage,
-  carriers: CarrierPage
+  freightConfig: FreightConfigPage
 }
+const pageKeys = new Set(Object.keys(pageMap))
 
 const navGroups = [
   {
@@ -41,7 +40,10 @@ const navGroups = [
   },
   {
     title: '作业中心',
-    items: [{ key: 'workbench', label: '发货作业台' }]
+    items: [
+      { key: 'workbench', label: '发货作业台' },
+      { key: 'accessoryBoxes', label: '配件箱管理' }
+    ]
   },
   {
     title: '移动端',
@@ -55,13 +57,6 @@ const navGroups = [
     items: [
       { key: 'reconcile', label: '对账单' },
       { key: 'freightConfig', label: '物流配置' }
-    ]
-  },
-  {
-    title: '基础设置',
-    items: [
-      { key: 'materials', label: '物料档案' },
-      { key: 'carriers', label: '物流公司' }
     ]
   }
 ]
@@ -79,9 +74,10 @@ const activeDnaTaskNo = ref('')
 const activeLeaveTaskNo = ref('')
 const activeReconcileTaskNo = ref('')
 const lastEntryPage = ref('')
+const sidebarCollapsed = ref(false)
 const pickConfirmState = ref({
   disabled: true,
-  label: '最终确认拣配完成'
+  label: '拣配完成'
 })
 const mobileHubKeys = ['employeeMobile', 'logisticsMobile']
 const mobileTaskKeys = ['pickScan', 'qcScan', 'packScan', 'dna', 'leaveConfirm']
@@ -103,7 +99,8 @@ const currentTaskNo = computed(() => {
 const standalonePageTails = {
   employeeMobile: '员工端入口',
   logisticsMobile: '物流端入口',
-  freightConfig: '规则维护'
+  freightConfig: '规则维护',
+  accessoryBoxes: '全部配件箱'
 }
 
 const activeItem = computed(() => {
@@ -125,12 +122,12 @@ const breadcrumbTail = computed(() => {
     return workbenchDetailActive.value ? activeWorkbenchTaskNo.value : '全部发货任务'
   }
 
-  if (activePage.value === 'pickScan') return activePickTaskNo.value || '待拣配发货单'
+  if (activePage.value === 'pickScan') return activePickTaskNo.value || '待拣配交货单'
   if (activePage.value === 'qcScan') return activeQcTaskNo.value || '抽检作业单'
   if (activePage.value === 'packScan') return activePackTaskNo.value || '封箱贴单作业单'
   if (activePage.value === 'dna') return activeDnaTaskNo.value || 'DNA 录入作业单'
   if (activePage.value === 'leaveConfirm') return activeLeaveTaskNo.value || '开始运输确认单'
-  if (activePage.value === 'printOperation') return activePrintTaskNo.value || '待打印发货单'
+  if (activePage.value === 'printOperation') return activePrintTaskNo.value || '待打印交货单'
   if (standalonePageTails[activePage.value]) return standalonePageTails[activePage.value]
 
   return 'FH202605180001'
@@ -143,6 +140,11 @@ const showPickConfirmButton = computed(() => activePage.value === 'pickScan')
 const mobileNavGroups = computed(() => navGroups)
 
 function switchPage(key, taskNo = '') {
+  if (!pageKeys.has(key)) {
+    switchPage('workbench')
+    return
+  }
+
   if (mobileTaskKeys.includes(key) && mobileHubKeys.includes(activePage.value)) {
     lastEntryPage.value = activePage.value
   } else if (mobileHubKeys.includes(key)) {
@@ -204,21 +206,35 @@ function goBack() {
 function handlePickConfirmState(state) {
   pickConfirmState.value = {
     disabled: Boolean(state?.disabled),
-    label: state?.label || '最终确认拣配完成'
+    label: state?.label || '拣配完成'
   }
 }
 
 function confirmPickFromTopbar() {
   pageComponent.value?.confirmPickComplete?.()
 }
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">LS</span>
-        <span>物流过程管控</span>
+        <span class="brand-name">物流过程管控</span>
+        <button
+          class="sidebar-toggle"
+          type="button"
+          :aria-label="sidebarCollapsed ? '展开菜单' : '收起菜单'"
+          :title="sidebarCollapsed ? '展开菜单' : '收起菜单'"
+          :aria-expanded="!sidebarCollapsed"
+          @click="toggleSidebar"
+        >
+          <span class="sidebar-toggle-icon" aria-hidden="true"></span>
+        </button>
       </div>
 
       <template v-for="group in navGroups" :key="group.title">
@@ -229,9 +245,11 @@ function confirmPickFromTopbar() {
           class="nav-item"
           :class="{ active: item.key === activePage }"
           type="button"
+          :title="sidebarCollapsed ? item.label : ''"
           @click="switchPage(item.key)"
         >
-          {{ item.label }}
+          <span class="nav-item-mark" aria-hidden="true">{{ item.label.slice(0, 1) }}</span>
+          <span class="nav-item-label">{{ item.label }}</span>
         </button>
       </template>
     </aside>

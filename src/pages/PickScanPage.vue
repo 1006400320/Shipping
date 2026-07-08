@@ -16,7 +16,7 @@ const scanCode = ref('65002008')
 const accessoryMaterialScanCode = ref('65002008')
 const selectedAccessoryBoxCode = ref('PJX-2604030003-01')
 const expandedAccessoryBoxCodes = ref(['PJX-2604030003-01'])
-const latestMessage = ref('当前发货单待拣 5 件，等待扫码枪输入物料编码二维码。')
+const latestMessage = ref('当前交货单待拣 5 件，等待扫码枪输入物料编码二维码。')
 const latestMessageType = ref('neutral')
 const exceptionCount = ref(0)
 const pickConfirmed = ref(false)
@@ -135,7 +135,8 @@ const accessoryBoxes = ref([
     ],
     status: '已添加',
     createdAt: '10:12:30',
-    printedAt: '10:14:02'
+    printedAt: '10:14:02',
+    remark: '线材与壳体同箱，注意防压。'
   },
   {
     code: 'PJX-2604030003-02',
@@ -144,7 +145,18 @@ const accessoryBoxes = ref([
     materials: [{ code: '65003002', name: '大件立柱组件', qty: 1, scannedAt: '10:20:16' }],
     status: '已添加',
     createdAt: '10:19:45',
-    printedAt: ''
+    printedAt: '',
+    remark: ''
+  },
+  {
+    code: 'PJX-2604030003-03',
+    boxConfigId: 'BOXCFG-004',
+    name: '配件箱-空箱待关联',
+    materials: [],
+    status: '已添加',
+    createdAt: '10:22:30',
+    printedAt: '',
+    remark: ''
   }
 ])
 
@@ -412,7 +424,7 @@ function bindMaterialToAccessoryBox(code) {
     return
   }
   if (!item) {
-    failScan(code, '不属于当前发货单，不能装入配件箱。')
+    failScan(code, '不属于当前交货单，不能装入配件箱。')
     return
   }
   if (!item.requiresAccessoryBox) {
@@ -507,13 +519,29 @@ function createAccessoryBox() {
     materials: [],
     status: '已添加',
     createdAt: formatTime(),
-    printedAt: ''
+    printedAt: '',
+    remark: ''
   }
   accessoryBoxes.value.unshift(box)
   selectAccessoryBoxForMaterial(box)
   latestMessage.value = `配件箱添加成功：${code}，只需关联配件物料。`
   latestMessageType.value = 'success'
   addTimeline('配件箱添加成功', `${code} 已绑定到 ${shipmentNo.value}，设备 ${deviceNo}`)
+}
+
+function deleteAccessoryBox(box) {
+  if (!box || box.materials.length) return
+
+  accessoryBoxes.value = accessoryBoxes.value.filter((item) => item.code !== box.code)
+  expandedAccessoryBoxCodes.value = expandedAccessoryBoxCodes.value.filter((item) => item !== box.code)
+
+  if (selectedAccessoryBoxCode.value === box.code) {
+    selectedAccessoryBoxCode.value = accessoryBoxes.value[0]?.code || ''
+  }
+
+  latestMessage.value = `配件箱已删除：${box.code}。`
+  latestMessageType.value = 'neutral'
+  addTimeline('配件箱删除', `${box.code} 未关联物料，已由 ${operator} 删除`, 'success')
 }
 
 function printAccessoryBarcode(box = selectedAccessoryBox.value) {
@@ -540,7 +568,7 @@ function submitScan() {
   if (!/^65\d{6}$/.test(code) && !/^SKU-[A-Z0-9-]+$/.test(code)) {
     failScan(code, '物料编码必须是 65 开头的 8 位数字。')
   } else if (!item) {
-    failScan(code, '不属于当前发货单。')
+    failScan(code, '不属于当前交货单。')
   } else if (item.picked >= item.planned) {
     failScan(code, '已达到计划数量，禁止重复拣配。')
   } else {
@@ -571,7 +599,7 @@ watch(
   () => {
     emit('pick-confirm-state', {
       disabled: !canConfirmPick.value,
-      label: pickConfirmed.value ? '已确认拣配完成' : '最终确认拣配完成'
+      label: pickConfirmed.value ? '已确认拣配完成' : '拣配完成'
     })
   },
   { immediate: true }
@@ -622,7 +650,7 @@ defineExpose({
 
           <section class="panel">
             <div class="section-head">
-              <div class="section-title">当前发货单</div>
+              <div class="section-title">当前交货单</div>
               <div class="section-extra">{{ shipmentNo }}</div>
             </div>
             <div class="info-list">
@@ -653,10 +681,6 @@ defineExpose({
                 <button class="scan-button" type="submit" :disabled="!selectedAccessoryBox">关联配件物料</button>
               </form>
 
-              <div class="accessory-actions">
-                <button class="btn primary" type="button" @click="createAccessoryBox">新增配件箱</button>
-              </div>
-
               <div class="accessory-box-list">
                 <article
                   v-for="box in accessoryBoxes"
@@ -672,6 +696,7 @@ defineExpose({
                         体积 {{ formatVolume(getAccessoryBoxFreightInfo(box).volumeCbm) }} m³ / 体积计费 {{ formatAccessoryBoxFreight(box) }} 元
                         <span class="freight-help" tabindex="0" :title="getAccessoryBoxFreightTooltip(box)" :data-tooltip="getAccessoryBoxFreightTooltip(box)" aria-label="查看配件箱运费计算逻辑" @pointerenter="positionFreightTooltip" @mouseenter="positionFreightTooltip" @mouseleave="hideFreightTooltip" @focus="positionFreightTooltip" @blur="hideFreightTooltip">?</span>
                       </em>
+                      <em>备注：{{ box.remark || '未填写备注' }}</em>
                     </span>
                   </button>
                   <div class="accessory-box-row-actions">
@@ -679,11 +704,16 @@ defineExpose({
                       {{ box.printedAt ? '已打印' : '打印条形码' }}
                     </button>
                     <button class="btn primary" type="button" @click="selectAccessoryBoxForMaterial(box)">关联物料</button>
+                    <button v-if="!box.materials.length" class="btn danger" type="button" @click="deleteAccessoryBox(box)">删除</button>
                     <button class="btn" type="button" @click="toggleAccessoryBox(box)">
                       {{ isAccessoryBoxExpanded(box.code) ? '收起' : '展开' }}
                     </button>
                   </div>
                   <div v-if="isAccessoryBoxExpanded(box.code)" class="accessory-material-list inline">
+                    <label class="accessory-box-remark" @click.stop>
+                      <span>备注</span>
+                      <textarea v-model="box.remark" rows="2" maxlength="120" placeholder="填写配件箱备注" @click.stop></textarea>
+                    </label>
                     <div v-for="material in box.materials" :key="material.code" class="accessory-material-item">
                       <span>
                         <strong>{{ material.code }}</strong>

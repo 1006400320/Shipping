@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { materials } from '../data/logistics'
 
@@ -111,7 +111,7 @@ function submitScan() {
     failCount.value += 1
     latestMessage.value = `扫码异常：${code} 不属于当前抽检清单。`
     latestMessageType.value = 'danger'
-    addTimeline('抽检失败', `${code} 不属于当前发货单，设备 ${deviceNo}`, 'danger')
+    addTimeline('抽检失败', `${code} 不属于当前交货单，设备 ${deviceNo}`, 'danger')
   }
 
   nextTick(() => scanInput.value?.select())
