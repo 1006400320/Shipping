@@ -11,14 +11,17 @@ const props = defineProps({
 const emit = defineEmits(['pick-confirm-state'])
 
 const scanInput = ref(null)
+const accessoryBoxInput = ref(null)
 const accessoryMaterialInput = ref(null)
 const scanCode = ref('65002008')
+const accessoryBoxScanCode = ref('PJX-2604030003-01')
 const accessoryMaterialScanCode = ref('65002008')
 const selectedAccessoryBoxCode = ref('PJX-2604030003-01')
 const expandedAccessoryBoxCodes = ref(['PJX-2604030003-01'])
 const latestMessage = ref('当前交货单待拣 5 件，等待扫码枪输入物料编码二维码。')
 const latestMessageType = ref('neutral')
 const exceptionCount = ref(0)
+const exceptionSeq = ref(1)
 const pickConfirmed = ref(false)
 const freightTooltip = ref({
   visible: false,
@@ -353,6 +356,12 @@ function normalizeScanCode(rawCode) {
   return parts.find((part) => /^65\d{6}$/.test(part)) || parts.find((part) => /^SKU-[A-Z0-9-]+$/.test(part)) || value
 }
 
+function normalizeAccessoryBoxCode(rawCode) {
+  const value = rawCode.trim().toUpperCase()
+  const parts = value.split(/[|,;\s]+/)
+  return parts.find((part) => /^PJX-[A-Z0-9-]+$/.test(part)) || value
+}
+
 function getAccessoryBoxCode(item) {
   return accessoryRelationRows.value.find((relation) => relation.code === item.code || relation.code === item.sku)?.boxCode || ''
 }
@@ -390,6 +399,54 @@ function failScan(code, reason) {
   addTimeline('拣配扫码失败', `${code} ${reason}，设备 ${deviceNo}`, 'danger')
 }
 
+function addExceptionMaterial() {
+  const seq = String(exceptionSeq.value).padStart(2, '0')
+  const code = `6599${seq}01`
+  if (pickRows.value.some((item) => item.code === code)) {
+    exceptionSeq.value += 1
+    addExceptionMaterial()
+    return
+  }
+
+  const row = {
+    code,
+    sku: `SKU-EXTRA-${seq}`,
+    name: `异常补发配件-${seq}`,
+    location: 'EX-01',
+    planned: 1,
+    picked: 0,
+    box: '待分配',
+    requiresAccessoryBox: true,
+    lastScan: '',
+    weightKg: 1,
+    dimensionsMm: '300*200*120'
+  }
+  pickRows.value.push(row)
+  exceptionSeq.value += 1
+  exceptionCount.value += 1
+  latestMessage.value = `异常添加物料：${row.code} 已加入当前交货单，计划数量 1。`
+  latestMessageType.value = 'danger'
+  addTimeline('异常添加物料', `${row.code} 已加入 ${shipmentNo.value}，需补扫并关联配件箱`, 'danger')
+}
+
+function removeExceptionMaterial() {
+  const removable = [...pickRows.value].reverse().find((item) => item.picked < item.planned)
+  if (!removable) {
+    latestMessage.value = '当前没有可删除的未完成物料。'
+    latestMessageType.value = 'danger'
+    return
+  }
+
+  pickRows.value = pickRows.value.filter((item) => item.code !== removable.code)
+  accessoryBoxes.value.forEach((box) => {
+    box.materials = box.materials.filter((material) => material.code !== removable.code)
+  })
+  exceptionCount.value += 1
+  latestMessage.value = `异常删除物料：${removable.code} 已从当前交货单移除。`
+  latestMessageType.value = 'danger'
+  addTimeline('异常删除物料', `${removable.code} 已从 ${shipmentNo.value} 移除，操作员 ${operator}`, 'danger')
+}
+
 function isAccessoryBoxExpanded(code) {
   return expandedAccessoryBoxCodes.value.includes(code)
 }
@@ -409,6 +466,50 @@ function selectAccessoryBoxForMaterial(box) {
     expandedAccessoryBoxCodes.value = [...expandedAccessoryBoxCodes.value, box.code]
   }
   nextTick(() => accessoryMaterialInput.value?.select())
+}
+
+function scanAccessoryBox() {
+  const rawCode = accessoryBoxScanCode.value.trim()
+  if (!rawCode) {
+    latestMessage.value = '配件箱码为空，请先扫描配件箱二维码。'
+    latestMessageType.value = 'danger'
+    accessoryBoxInput.value?.focus()
+    return
+  }
+
+  const code = normalizeAccessoryBoxCode(rawCode)
+  if (!/^PJX-[A-Z0-9-]+$/.test(code)) {
+    failScan(code, '不是有效配件箱二维码。')
+    nextTick(() => accessoryBoxInput.value?.select())
+    return
+  }
+
+  let box = accessoryBoxes.value.find((item) => item.code === code)
+  if (!box) {
+    box = {
+      code,
+      boxConfigId: 'BOXCFG-004',
+      name: `配件箱-${accessoryBoxCount.value + 1}`,
+      materials: [],
+      status: '已添加',
+      createdAt: formatTime(),
+      printedAt: '',
+      remark: ''
+    }
+    accessoryBoxes.value.unshift(box)
+    latestMessage.value = `配件箱关联成功：${code}。请继续扫描配件物料二维码。`
+    addTimeline('配件箱关联成功', `${code} 已关联到 ${shipmentNo.value}，设备 ${deviceNo}`)
+  } else {
+    latestMessage.value = `已选中配件箱：${code}。请继续扫描配件物料二维码。`
+    addTimeline('配件箱扫码选中', `${code} 已选中，设备 ${deviceNo}`)
+  }
+
+  latestMessageType.value = 'success'
+  selectAccessoryBoxForMaterial(box)
+  nextTick(() => {
+    accessoryBoxScanCode.value = ''
+    accessoryMaterialInput.value?.select()
+  })
 }
 
 function bindMaterialToAccessoryBox(code) {
@@ -452,6 +553,7 @@ function bindMaterialToAccessoryBox(code) {
     box.materials.push({
       code: item.code,
       name: item.name,
+      planned: item.planned,
       qty: 1,
       scannedAt: formatTime()
     })
@@ -460,6 +562,25 @@ function bindMaterialToAccessoryBox(code) {
   latestMessage.value = `关联成功：${item.code} 已装入配件箱 ${box.code}。`
   latestMessageType.value = 'success'
   addTimeline('配件箱物料关联', `${item.code} -> ${box.code}，设备 ${deviceNo}`)
+}
+
+function getAccessoryMaterialLimit(material) {
+  const item = pickRows.value.find((row) => row.code === material.code || row.sku === material.code)
+  return Number(item?.planned || material.planned || 1)
+}
+
+function updateAccessoryMaterialQty(box, material, nextQty) {
+  const currentMaterial = box.materials.find((item) => item.code === material.code)
+  if (!currentMaterial) return
+
+  const limit = getAccessoryMaterialLimit(currentMaterial)
+  const qty = Math.max(1, Math.min(Number(nextQty) || 1, limit))
+  currentMaterial.qty = qty
+  currentMaterial.planned = limit
+  currentMaterial.scannedAt = formatTime()
+  latestMessage.value = `数量已调整：${currentMaterial.code} ${qty}/${limit} 件。`
+  latestMessageType.value = 'success'
+  addTimeline('配件物料数量调整', `${currentMaterial.code} 调整为 ${qty}/${limit} 件，操作员 ${operator}`)
 }
 
 function unbindMaterialFromAccessoryBox(box, material) {
@@ -481,13 +602,14 @@ function unbindMaterialFromAccessoryBox(box, material) {
 function scanAccessoryMaterial() {
   const rawCode = accessoryMaterialScanCode.value.trim()
   if (!rawCode) {
-    latestMessage.value = '物料码为空，请先扫描物料条形码。'
+    latestMessage.value = '物料码为空，请先扫描配件物料二维码。'
     latestMessageType.value = 'danger'
     return
   }
   if (!selectedAccessoryBox.value) {
-    latestMessage.value = '请先选择配件箱，再扫描配件物料。'
+    latestMessage.value = '请先扫描配件箱二维码，再扫描配件物料二维码。'
     latestMessageType.value = 'danger'
+    accessoryBoxInput.value?.focus()
     return
   }
   bindMaterialToAccessoryBox(normalizeScanCode(rawCode))
@@ -660,6 +782,14 @@ defineExpose({
               <div class="info-row"><span class="label">物料进度</span><span class="value">{{ totalPicked }} / {{ totalPlanned }}</span></div>
               <div class="info-row"><span class="label">下一步</span><span class="value">{{ nextStep }}</span></div>
             </div>
+            <div class="pick-exception-actions">
+              <div>
+                <strong>异常处理</strong>
+                <span>支持临时添加或删除当前交货单物料</span>
+              </div>
+              <button class="btn" type="button" @click="addExceptionMaterial">添加物料</button>
+              <button class="btn danger" type="button" @click="removeExceptionMaterial">删除物料</button>
+            </div>
           </section>
 
           <section class="panel accessory-box-panel">
@@ -669,17 +799,32 @@ defineExpose({
             </div>
 
             <div class="accessory-box-body">
-              <form class="scan-input-wrap accessory-scan-wrap" @submit.prevent="scanAccessoryMaterial">
-                <input
-                  ref="accessoryMaterialInput"
-                  v-model="accessoryMaterialScanCode"
-                  class="scan-input accessory-scan-input"
-                  aria-label="配件箱物料扫码输入"
-                  placeholder="点击配件箱行的关联物料后，连续扫描配件物料码"
-                  :disabled="!selectedAccessoryBox"
-                />
-                <button class="scan-button" type="submit" :disabled="!selectedAccessoryBox">关联配件物料</button>
-              </form>
+              <div class="accessory-scan-flow">
+                <form class="scan-input-wrap accessory-scan-wrap" @submit.prevent="scanAccessoryBox">
+                  <span class="scan-step">1</span>
+                  <input
+                    ref="accessoryBoxInput"
+                    v-model="accessoryBoxScanCode"
+                    class="scan-input accessory-scan-input"
+                    aria-label="配件箱二维码扫码输入"
+                    placeholder="先扫描配件箱二维码，关联当前交货单"
+                  />
+                  <button class="scan-button" type="submit">关联配件箱</button>
+                </form>
+
+                <form class="scan-input-wrap accessory-scan-wrap" @submit.prevent="scanAccessoryMaterial">
+                  <span class="scan-step">2</span>
+                  <input
+                    ref="accessoryMaterialInput"
+                    v-model="accessoryMaterialScanCode"
+                    class="scan-input accessory-scan-input"
+                    aria-label="配件物料二维码扫码输入"
+                    placeholder="再扫描配件物料二维码，关联到已选配件箱"
+                    :disabled="!selectedAccessoryBox"
+                  />
+                  <button class="scan-button" type="submit" :disabled="!selectedAccessoryBox">关联配件物料</button>
+                </form>
+              </div>
 
               <div class="accessory-box-list">
                 <article
@@ -720,7 +865,32 @@ defineExpose({
                         <em>{{ material.name }}</em>
                       </span>
                       <div class="accessory-material-actions">
-                        <small>{{ material.qty }} 件 / {{ material.scannedAt }}</small>
+                        <div class="accessory-qty-control">
+                          <button
+                            class="qty-btn"
+                            type="button"
+                            :disabled="material.qty <= 1"
+                            @click="updateAccessoryMaterialQty(box, material, material.qty - 1)"
+                          >
+                            -
+                          </button>
+                          <input
+                            :value="material.qty"
+                            type="number"
+                            min="1"
+                            :max="getAccessoryMaterialLimit(material)"
+                            @change="updateAccessoryMaterialQty(box, material, $event.target.value)"
+                          />
+                          <button
+                            class="qty-btn"
+                            type="button"
+                            :disabled="material.qty >= getAccessoryMaterialLimit(material)"
+                            @click="updateAccessoryMaterialQty(box, material, material.qty + 1)"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <small>{{ material.qty }} / {{ getAccessoryMaterialLimit(material) }} 件 · {{ material.scannedAt }}</small>
                         <button class="btn danger" type="button" @click="unbindMaterialFromAccessoryBox(box, material)">取消关联</button>
                       </div>
                     </div>

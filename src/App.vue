@@ -11,6 +11,7 @@ import LogisticsMobilePage from './pages/LogisticsMobilePage.vue'
 import PackScanPage from './pages/PackScanPage.vue'
 import PickScanPage from './pages/PickScanPage.vue'
 import PrintOperationPage from './pages/PrintOperationPage.vue'
+import ShipmentApplicationPage from './pages/ShipmentApplicationPage.vue'
 import QcScanPage from './pages/QcScanPage.vue'
 import ReconcilePage from './pages/ReconcilePage.vue'
 import WorkbenchPage from './pages/WorkbenchPage.vue'
@@ -27,6 +28,7 @@ const pageMap = {
   qcScan: QcScanPage,
   packScan: PackScanPage,
   dna: DnaPage,
+  shipmentApplication: ShipmentApplicationPage,
   leaveConfirm: LeaveConfirmPage,
   reconcile: ReconcilePage,
   freightConfig: FreightConfigPage
@@ -72,6 +74,7 @@ const activeQcTaskNo = ref('')
 const activePackTaskNo = ref('')
 const activeDnaTaskNo = ref('')
 const activeLeaveTaskNo = ref('')
+const activeShipmentApplicationNo = ref('')
 const activeReconcileTaskNo = ref('')
 const lastEntryPage = ref('')
 const sidebarCollapsed = ref(false)
@@ -81,7 +84,7 @@ const pickConfirmState = ref({
 })
 const mobileHubKeys = ['employeeMobile', 'logisticsMobile']
 const mobileTaskKeys = ['pickScan', 'qcScan', 'packScan', 'dna', 'leaveConfirm']
-const operationPageKeys = ['complete', 'printOperation', 'pickScan', 'qcScan', 'packScan', 'dna', 'leaveConfirm']
+const operationPageKeys = ['complete', 'printOperation', 'pickScan', 'qcScan', 'packScan', 'dna', 'shipmentApplication', 'leaveConfirm']
 
 const currentPage = computed(() => pageMap[activePage.value] || WorkbenchPage)
 const currentTaskNo = computed(() => {
@@ -91,6 +94,7 @@ const currentTaskNo = computed(() => {
   if (activePage.value === 'qcScan') return activeQcTaskNo.value
   if (activePage.value === 'packScan') return activePackTaskNo.value
   if (activePage.value === 'dna') return activeDnaTaskNo.value
+  if (activePage.value === 'shipmentApplication') return activeShipmentApplicationNo.value
   if (activePage.value === 'leaveConfirm') return activeLeaveTaskNo.value
   if (activePage.value === 'reconcile') return activeReconcileTaskNo.value
   return ''
@@ -126,6 +130,7 @@ const breadcrumbTail = computed(() => {
   if (activePage.value === 'qcScan') return activeQcTaskNo.value || '抽检作业单'
   if (activePage.value === 'packScan') return activePackTaskNo.value || '封箱贴单作业单'
   if (activePage.value === 'dna') return activeDnaTaskNo.value || 'DNA 录入作业单'
+  if (activePage.value === 'shipmentApplication') return activeShipmentApplicationNo.value || '出货申请流程'
   if (activePage.value === 'leaveConfirm') return activeLeaveTaskNo.value || '开始运输确认单'
   if (activePage.value === 'printOperation') return activePrintTaskNo.value || '待打印交货单'
   if (standalonePageTails[activePage.value]) return standalonePageTails[activePage.value]
@@ -176,6 +181,7 @@ function switchPage(key, taskNo = '') {
   activeQcTaskNo.value = key === 'qcScan' ? taskNo : ''
   activePackTaskNo.value = key === 'packScan' ? taskNo : ''
   activeDnaTaskNo.value = key === 'dna' ? taskNo : ''
+  activeShipmentApplicationNo.value = key === 'shipmentApplication' ? taskNo : ''
   activeLeaveTaskNo.value = key === 'leaveConfirm' ? taskNo : ''
   activeReconcileTaskNo.value = key === 'reconcile' ? taskNo : ''
 
@@ -302,6 +308,7 @@ function toggleSidebar() {
         @open-qc="switchPage('qcScan', $event)"
         @open-pack="switchPage('packScan', $event)"
         @open-dna="switchPage('dna', $event)"
+        @open-shipment-application="switchPage('shipmentApplication', $event)"
         @open-leave="switchPage('leaveConfirm', $event)"
         @open-reconcile="switchPage('reconcile', $event)"
         @back-to-workbench="switchPage('workbench')"

@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { feeChangeApprovalSteps, feeChangeFlows, feeChangeTypes, materials, shipmentTasks } from '../data/logistics'
 import { idbGet } from '../storage/indexedDb'
 
-const emit = defineEmits(['open-complete', 'open-print', 'open-pick', 'open-qc', 'open-pack', 'open-dna', 'open-leave', 'open-reconcile', 'detail-change'])
+const emit = defineEmits(['open-complete', 'open-print', 'open-pick', 'open-qc', 'open-pack', 'open-dna', 'open-shipment-application', 'open-leave', 'open-reconcile', 'detail-change'])
 
 const selectedTaskNo = ref('')
 const activeTaskTab = ref('all')
@@ -437,6 +437,11 @@ function handleTaskAction(action, task) {
   showTaskDetail(task.no)
 }
 
+function openShipmentApplication(task) {
+  if (!task?.applicationNo) return
+  emit('open-shipment-application', task.no)
+}
+
 defineExpose({ showAllTasks })
 </script>
 
@@ -515,7 +520,17 @@ defineExpose({ showAllTasks })
                   <button class="text-link" type="button" @click="showTaskDetail(task.no)">{{ task.no }}</button>
                 </td>
                 <td>{{ task.status }}</td>
-                <td>{{ task.applicationNo }}</td>
+                <td class="link-cell">
+                  <button
+                    class="text-link"
+                    type="button"
+                    :disabled="!task.applicationNo"
+                    :title="task.applicationNo ? '点击进入出货申请流程' : '暂无出货申请单号'"
+                    @click="openShipmentApplication(task)"
+                  >
+                    {{ task.applicationNo || '-' }}
+                  </button>
+                </td>
                 <td>{{ task.deliveryNo || '-' }}</td>
                 <td>{{ task.transferNo || '-' }}</td>
                 <td>{{ task.requiredDate }}</td>

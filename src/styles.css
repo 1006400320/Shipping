@@ -2013,6 +2013,10 @@ h1 {
   margin-bottom: 14px;
 }
 
+.pack-workspace .scan-input-wrap {
+  grid-template-columns: minmax(0, 1fr) 98px 132px;
+}
+
 .scan-input-wrap.compact {
   grid-template-columns: minmax(0, 1fr) 108px;
   max-width: 560px;
@@ -2047,6 +2051,56 @@ h1 {
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.scan-button.secondary {
+  border: 1px solid #b8c3cf;
+  background: #fff;
+  color: var(--text);
+}
+
+.packing-list-dialog {
+  width: min(1180px, 100%);
+}
+
+.packing-list-sheet {
+  width: 1080px;
+  min-height: 640px;
+}
+
+.packing-list-info-grid {
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr) minmax(240px, .95fr);
+  min-height: 116px;
+  margin-top: 30px;
+}
+
+.packing-list-info-grid .print-info-list div {
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.packing-list-info-grid .print-info-list strong {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.packing-list-info-grid .print-info-list:nth-child(3) strong {
+  overflow-wrap: normal;
+}
+
+.packing-list-table th:nth-child(1) {
+  width: 72px;
+}
+
+.packing-list-table th:nth-child(2) {
+  width: 170px;
+}
+
+.packing-list-table th:nth-child(3) {
+  width: auto;
+}
+
+.packing-list-table th:nth-child(4) {
+  width: 96px;
 }
 
 .progress-meter {
@@ -2195,6 +2249,34 @@ h1 {
   grid-template-columns: 112px minmax(0, 1fr);
 }
 
+.pick-exception-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 16px 16px;
+  padding: 12px;
+  border: 1px solid #f2c3bb;
+  border-radius: 8px;
+  background: #fff8f6;
+}
+
+.pick-exception-actions strong,
+.pick-exception-actions span {
+  display: block;
+}
+
+.pick-exception-actions strong {
+  color: #8a2d20;
+  font-size: 14px;
+}
+
+.pick-exception-actions span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .accessory-box-panel {
   grid-column: 1 / -1;
 }
@@ -2203,9 +2285,26 @@ h1 {
   padding: 16px;
 }
 
-.accessory-scan-wrap {
-  grid-template-columns: minmax(0, 1fr) 86px;
+.accessory-scan-flow {
+  display: grid;
+  gap: 10px;
   margin-bottom: 12px;
+}
+
+.accessory-scan-wrap {
+  grid-template-columns: 32px minmax(0, 1fr) 112px;
+  margin-bottom: 0;
+}
+
+.scan-step {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-weight: 800;
 }
 
 .accessory-scan-input {
@@ -2395,6 +2494,43 @@ h1 {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.accessory-qty-control {
+  display: grid;
+  grid-template-columns: 28px 48px 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.accessory-qty-control input {
+  width: 48px;
+  height: 30px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 30px;
+  border: 0;
+  background: #f6f8fb;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.qty-btn:disabled {
+  color: #a6b0bd;
+  cursor: not-allowed;
 }
 
 .accessory-material-actions .btn {
@@ -3297,6 +3433,22 @@ h1 {
 
 .text-link:hover {
   text-decoration: underline;
+}
+
+.complete-application-page {
+  min-height: calc(100vh - 96px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.complete-application-blank h3 {
+  margin: 0;
+  color: #7c3aed;
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 700;
 }
 
 table {

@@ -19,6 +19,15 @@ const activeBoxNo = ref('BOX-20260518-003')
 const packageNo = ref('PKG-003')
 const labelBound = ref(false)
 const exceptionCount = ref(0)
+const packingListOpen = ref(false)
+
+const packingListInfo = {
+  remark: '封箱前核对箱内物料，贴单后交由物流发运。',
+  deliveryNo: '81113003',
+  route: '北京 → 深圳',
+  receiver: '张*三',
+  address: '北京市朝阳区项目仓 → 广东省深圳市南山区科技园'
+}
 
 const packRows = ref(
   materials.map((item) => ({
@@ -121,6 +130,15 @@ function submitScan() {
   focusScannerInput()
 }
 
+function openPackingList() {
+  packingListOpen.value = true
+}
+
+function closePackingList() {
+  packingListOpen.value = false
+  focusScannerInput()
+}
+
 function focusScannerInput() {
   nextTick(() => {
     scanInput.value?.focus()
@@ -169,6 +187,7 @@ onBeforeUnmount(() => {
                   @blur="focusScannerInput"
                 />
                 <button class="scan-button" type="submit">扫码确认</button>
+                <button class="scan-button secondary" type="button" @click="openPackingList">打印装箱清单</button>
               </form>
 
               <div class="progress-meter" aria-label="封箱贴单进度">
@@ -266,5 +285,65 @@ onBeforeUnmount(() => {
         </section>
       </aside>
     </section>
+
+    <div v-if="packingListOpen" class="print-dialog-backdrop" @click.self="closePackingList">
+      <section class="print-dialog packing-list-dialog" role="dialog" aria-modal="true" aria-label="装箱清单">
+        <div class="print-dialog-toolbar">
+          <strong>装箱清单</strong>
+          <div class="print-dialog-actions">
+            <button class="btn" type="button" @click="closePackingList">关闭</button>
+          </div>
+        </div>
+        <div class="print-preview-scroll">
+          <div class="delivery-print-page packing-list-sheet">
+            <div class="print-title">
+              <h1>深圳市捷顺科技实业股份有限公司</h1>
+              <strong>装箱清单</strong>
+            </div>
+
+            <div class="print-info-grid packing-list-info-grid">
+              <div class="print-info-list">
+                <div><span>备注</span><strong>{{ packingListInfo.remark }}</strong></div>
+                <div><span>送货单号</span><strong>{{ packingListInfo.deliveryNo }}</strong></div>
+                <div><span>箱码</span><strong>{{ activeBoxNo }}</strong></div>
+              </div>
+              <div class="print-info-list">
+                <div><span>地址</span><strong>{{ packingListInfo.address }}</strong></div>
+                <div><span>线路</span><strong>{{ packingListInfo.route }}</strong></div>
+                <div><span>收件人</span><strong>{{ packingListInfo.receiver }}</strong></div>
+              </div>
+              <div class="print-info-list">
+                <div><span>调拨单码</span><strong>{{ packageNo }}</strong></div>
+                <div><span>装箱数量</span><strong>{{ totalPacked }} / {{ totalPlanned }}</strong></div>
+                <div><span>封箱员</span><strong>{{ packer }}</strong></div>
+              </div>
+            </div>
+
+            <table class="print-material-table packing-list-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th>物料号</th>
+                  <th>物料描述</th>
+                  <th>数量</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in packRows" :key="item.code">
+                  <td>{{ index + 1 }}</td>
+                  <td>{{ item.code }}</td>
+                  <td class="print-text-left">{{ item.name }}</td>
+                  <td>{{ item.packed }}</td>
+                </tr>
+                <tr class="print-total-row">
+                  <td colspan="3">合计</td>
+                  <td>{{ totalPacked }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
   </section>
 </template>
