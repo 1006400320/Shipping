@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { carrierConfigs, senderConfigs, shipmentTasks } from '../data/logistics'
+import { carrierConfigs, materials, senderConfigs, shipmentTasks } from '../data/logistics'
 import { idbGet, idbSet } from '../storage/indexedDb'
 
 const props = defineProps({
@@ -15,6 +15,7 @@ const NORMAL = '正常'
 const FREIGHT_CONFIG_STORAGE_KEY = 'freight-config:v1'
 const deliveryMethods = ['货运', '车辆出货', '工程出货', '快递', '自提']
 const settlementMethods = ['月结', '现付']
+const sourceTypes = ['交货单', '调拨单', '手工录入']
 const showOrgDialog = ref(false)
 const selectedCostCenter = ref(null)
 const senderRows = ref(senderConfigs.map((item) => ({ ...item })))
@@ -23,8 +24,11 @@ const selectedSenderId = ref('')
 const selectedCarrierId = ref('')
 const selectedPickupPersonId = ref('')
 const sheetNotice = ref('')
+const draftTaskNo = ref('')
 const DELIVERY_DETAIL_STORAGE_PREFIX = 'delivery-detail:'
 const deliveryForm = reactive({
+  sourceType: '交货单',
+  sourceNo: '',
   receiverCompany: '',
   deliveryMethod: '',
   settlementMethod: '',
@@ -86,6 +90,7 @@ const enabledPickupPersonOptions = computed(() => {
 const selectedPickupPerson = computed(() => enabledPickupPersonOptions.value.find((person) => person.id === selectedPickupPersonId.value))
 const selectedPickupPhone = computed(() => selectedPickupPerson.value?.phone || '')
 const selectedPickupIdCard = computed(() => selectedPickupPerson.value?.idCard || '')
+const needsSourceNo = computed(() => deliveryForm.sourceType === '交货单' || deliveryForm.sourceType === '调拨单')
 
 function cloneRows(rows) { return rows.map((item) => ({ ...item, pickupPeople: Array.isArray(item.pickupPeople) ? item.pickupPeople.map((person) => ({ ...person })) : item.pickupPeople })) }
 function mergeConfigRow(item, fallback) { const merged = { ...(fallback || {}), ...item }; if (fallback?.phone && typeof merged.phone === 'string' && merged.phone.includes('*')) merged.phone = fallback.phone; if (Array.isArray(fallback?.pickupPeople) || Array.isArray(item?.pickupPeople)) { const fallbackPeople = Array.isArray(fallback?.pickupPeople) ? fallback.pickupPeople : []; const savedPeople = Array.isArray(item?.pickupPeople) ? item.pickupPeople : []; const fallbackById = new Map(fallbackPeople.map((person) => [person.id, person])); const mergedPeople = savedPeople.map((person) => ({ ...(fallbackById.get(person.id) || {}), ...person })); const mergedIds = new Set(mergedPeople.map((person) => person.id)); const missingFallbackPeople = fallbackPeople.filter((person) => !mergedIds.has(person.id)); merged.pickupPeople = [...mergedPeople, ...missingFallbackPeople.map((person) => ({ ...person }))] } return merged }
@@ -101,12 +106,116 @@ function normalizeMoney(value) { const cleaned = String(value).replace(/[^\d.]/g
 function updateExpenseAmount(key, event) { const value = normalizeMoney(event.target.value); expenseForm[key] = value; event.target.value = value }
 function getReadonlyExpenseValue(key) { return formatMoney(key === 'transportFee' ? transportFee.value : totalFee.value) }
 function getCurrentTask() { return shipmentTasks.find((task) => task.no === props.taskNo) }
-function getDeliveryDetailKey() { return `${DELIVERY_DETAIL_STORAGE_PREFIX}${props.taskNo || 'draft'}` }
+function getEffectiveTaskNo() { return props.taskNo || draftTaskNo.value }
+function createTaskNo() {
+  const maxNo = shipmentTasks.reduce((max, task) => {
+    const value = Number(task.no)
+    return Number.isFinite(value) ? Math.max(max, value) : max
+  }, 2604030000)
+  return String(maxNo + 1)
+}
+function ensureDraftTask() {
+  if (props.taskNo) return getCurrentTask()
+  if (!draftTaskNo.value) {
+    draftTaskNo.value = createTaskNo()
+    deliveryForm.deliveryNo = deliveryForm.deliveryNo || `8111${draftTaskNo.value.slice(-4)}`
+    shipmentTasks.unshift({
+      no: draftTaskNo.value,
+      customer: deliveryForm.receiverCompany || '手工创建送货单',
+      receiver: deliveryForm.receiver || '',
+      phone: deliveryForm.receiverPhone || '',
+      address: deliveryForm.address || '',
+      applicationNo: '',
+      deliveryNo: deliveryForm.deliveryNo,
+      transferNo: '',
+      requiredDate: deliveryForm.requiredArrivalDate || '',
+      contractNo: deliveryForm.contractNo || '',
+      salesOrderNo: deliveryForm.salesOrderNo || '',
+      receiverCompany: deliveryForm.receiverCompany || '',
+      carrier: '',
+      currentNode: '完善',
+      status: '待完善',
+      priority: '普通',
+      plannedDate: deliveryForm.requiredArrivalDate || '',
+      progress: { done: 0, total: 20 },
+      boxes: { total: 0, sealed: 0, active: 0 },
+      feeStatus: '未对账',
+      tone: 'amber'
+    })
+  }
+  return shipmentTasks.find((task) => task.no === draftTaskNo.value)
+}
+function findSourceTask() {
+  const sourceNo = deliveryForm.sourceNo.trim()
+  if (!needsSourceNo.value || !sourceNo) return null
+  return shipmentTasks.find((task) => {
+    const candidates = deliveryForm.sourceType === '调拨单'
+      ? [task.transferNo, task.no]
+      : [task.no, task.deliveryNo, task.applicationNo]
+    return candidates.some((item) => item && item === sourceNo)
+  })
+}
+function fillMaterialRows() {
+  materialRows.splice(0, materialRows.length, ...materials.map((item) => ({
+    code: item.code || '',
+    description: item.name || '',
+    unit: '件',
+    actualQty: item.planned || '',
+    pieces: item.planned || '',
+    price: '',
+    total: '',
+    remark: ''
+  })))
+}
+function fillDestinationFromAddress(address) {
+  if (address.includes('上海市')) {
+    deliveryForm.destinationProvince = '上海市'
+    deliveryForm.destinationCity = '上海市'
+    return
+  }
+  if (address.includes('广州市')) {
+    deliveryForm.destinationProvince = '广东省'
+    deliveryForm.destinationCity = '广州市'
+    return
+  }
+  if (address.includes('惠州市')) {
+    deliveryForm.destinationProvince = '广东省'
+    deliveryForm.destinationCity = '惠州市'
+  }
+}
+function fillDeliveryFromSource() {
+  const task = findSourceTask()
+  if (!task) {
+    if (needsSourceNo.value && deliveryForm.sourceNo.trim()) sheetNotice.value = `未找到${deliveryForm.sourceType}：${deliveryForm.sourceNo.trim()}`
+    return
+  }
+  deliveryForm.contractNo = task.contractNo || ''
+  deliveryForm.salesOrderNo = task.salesOrderNo || ''
+  deliveryForm.receiverCompany = task.receiverCompany || task.customer || ''
+  deliveryForm.receiver = task.receiver || ''
+  deliveryForm.receiverPhone = task.phone || ''
+  deliveryForm.originCountry = '中国'
+  deliveryForm.originProvince = '广东省'
+  deliveryForm.originCity = '深圳市'
+  deliveryForm.originAddress = '捷顺科技园'
+  deliveryForm.destinationProvince = ''
+  deliveryForm.destinationCity = ''
+  deliveryForm.address = task.address || ''
+  fillDestinationFromAddress(deliveryForm.address)
+  deliveryForm.requiredArrivalDate = task.requiredDate || ''
+  fillMaterialRows()
+  sheetNotice.value = `已根据${deliveryForm.sourceType}带出基础资料和发货物料`
+}
+function handleSourceTypeChange() {
+  deliveryForm.sourceNo = ''
+  if (deliveryForm.sourceType === '手工录入') sheetNotice.value = ''
+}
+function getDeliveryDetailKey() { return `${DELIVERY_DETAIL_STORAGE_PREFIX}${getEffectiveTaskNo() || 'draft'}` }
 function buildDeliveryPayload() { return { taskNo: props.taskNo, deliveryForm: { ...deliveryForm }, materialRows: materialRows.map((item) => ({ ...item })), expenseForm: { ...expenseForm }, selectedCostCenter: selectedCostCenter.value ? { ...selectedCostCenter.value } : null, selectedSenderId: selectedSenderId.value, selectedCarrierId: selectedCarrierId.value, selectedPickupPersonId: selectedPickupPersonId.value, sender: selectedSender.value ? { ...selectedSender.value } : null, carrier: selectedCarrier.value ? { ...selectedCarrier.value } : null, pickupPerson: selectedPickupPerson.value ? { ...selectedPickupPerson.value } : null, transportFee: transportFee.value, totalFee: totalFee.value, updatedAt: new Date().toISOString() } }
-async function saveDeliveryDetail() { if (!props.taskNo) throw new Error('缺少交货单号，无法保存完善信息'); const payload = buildDeliveryPayload(); await idbSet(getDeliveryDetailKey(), payload); return payload }
+async function saveDeliveryDetail() { const task = ensureDraftTask(); if (!task) throw new Error('缺少交货单号，无法保存完善信息'); const payload = { ...buildDeliveryPayload(), taskNo: task.no }; await idbSet(getDeliveryDetailKey(), payload); return payload }
 async function loadDeliveryDetail() { if (!props.taskNo) return; const saved = await idbGet(getDeliveryDetailKey()); if (!saved) { const task = getCurrentTask(); if (task) { deliveryForm.receiverCompany = task.receiverCompany || task.customer || ''; deliveryForm.deliveryNo = task.deliveryNo || ''; deliveryForm.contractNo = task.contractNo || ''; deliveryForm.salesOrderNo = task.salesOrderNo || ''; deliveryForm.receiver = task.receiver || ''; deliveryForm.receiverPhone = task.phone || ''; deliveryForm.address = task.address || ''; deliveryForm.requiredArrivalDate = task.requiredDate || '' } return } Object.assign(deliveryForm, saved.deliveryForm || {}); Object.assign(expenseForm, saved.expenseForm || {}); selectedCostCenter.value = saved.selectedCostCenter || null; selectedSenderId.value = saved.selectedSenderId || ''; selectedCarrierId.value = saved.selectedCarrierId || ''; selectedPickupPersonId.value = saved.selectedPickupPersonId || ''; if (Array.isArray(saved.materialRows) && saved.materialRows.length) materialRows.splice(0, materialRows.length, ...saved.materialRows.map((item) => ({ ...item }))) }
-async function saveDraft() { const task = getCurrentTask(); if (task) { task.currentNode = '完善'; task.status = '待完善'; task.tone = 'amber' } try { await saveDeliveryDetail(); sheetNotice.value = '已保存完善信息草稿' } catch (error) { sheetNotice.value = error instanceof Error ? error.message : '保存失败' } }
-async function submitDelivery() { const task = getCurrentTask(); try { const saved = await saveDeliveryDetail(); if (task) { task.currentNode = '打印'; task.status = '待打印'; task.tone = 'blue'; task.deliveryNo = saved.deliveryForm.deliveryNo || task.deliveryNo; task.contractNo = saved.deliveryForm.contractNo || task.contractNo; task.salesOrderNo = saved.deliveryForm.salesOrderNo || task.salesOrderNo; task.receiverCompany = saved.deliveryForm.receiverCompany || task.receiverCompany; task.receiver = saved.deliveryForm.receiver || task.receiver; task.phone = saved.deliveryForm.receiverPhone || task.phone; task.address = saved.deliveryForm.address || task.address } sheetNotice.value = '已提交，完善信息已同步到详情页'; emit('back-to-workbench') } catch (error) { sheetNotice.value = error instanceof Error ? error.message : '提交失败' } }
+async function saveDraft() { const task = ensureDraftTask(); if (task) { task.currentNode = '完善'; task.status = '待完善'; task.tone = 'amber' } try { await saveDeliveryDetail(); sheetNotice.value = '已保存完善信息草稿' } catch (error) { sheetNotice.value = error instanceof Error ? error.message : '保存失败' } }
+async function submitDelivery() { const task = ensureDraftTask(); try { const saved = await saveDeliveryDetail(); if (task) { task.currentNode = '打印'; task.status = '待打印'; task.tone = 'blue'; task.deliveryNo = saved.deliveryForm.deliveryNo || task.deliveryNo; task.contractNo = saved.deliveryForm.contractNo || task.contractNo; task.salesOrderNo = saved.deliveryForm.salesOrderNo || task.salesOrderNo; task.receiverCompany = saved.deliveryForm.receiverCompany || task.receiverCompany; task.customer = saved.deliveryForm.receiverCompany || task.customer; task.receiver = saved.deliveryForm.receiver || task.receiver; task.phone = saved.deliveryForm.receiverPhone || task.phone; task.address = saved.deliveryForm.address || task.address; task.requiredDate = saved.deliveryForm.requiredArrivalDate || task.requiredDate; task.plannedDate = saved.deliveryForm.requiredArrivalDate || task.plannedDate } sheetNotice.value = '已提交，完善信息已同步到详情页'; emit('back-to-workbench') } catch (error) { sheetNotice.value = error instanceof Error ? error.message : '提交失败' } }
 onMounted(() => { void loadConfigOptions(); void loadDeliveryDetail() })
 </script>
 
@@ -132,12 +241,14 @@ onMounted(() => { void loadConfigOptions(); void loadDeliveryDetail() })
       <!-- 保持原完整页面内容不变 -->
       <section class="delivery-basic">
         <div class="basic-left">
+          <div class="form-line option-line source-type-line"><span>送货单来源</span><label v-for="type in sourceTypes" :key="type" class="radio-item"><input v-model="deliveryForm.sourceType" type="radio" name="sourceType" :value="type" @change="handleSourceTypeChange" />{{ type }}</label></div>
+          <label v-if="needsSourceNo" class="form-line form-line-wide"><span>{{ deliveryForm.sourceType }}号</span><input v-model.trim="deliveryForm.sourceNo" class="sheet-input" type="text" :placeholder="`请输入${deliveryForm.sourceType}号`" @blur="fillDeliveryFromSource" /></label>
           <label class="form-line form-line-wide"><span>收货单位<span class="required">*</span></span><input v-model="deliveryForm.receiverCompany" class="sheet-input" type="text" /></label>
           <div class="form-line split-line"><span>成本中心<span class="required">*</span></span><button class="sheet-select-button" type="button" @click="openOrgDialog">{{ selectedCostCenter?.code ? `${selectedCostCenter.code} ${selectedCostCenter.name}` : '选择' }}</button></div>
           <div class="form-line option-line"><span>发运方式<span class="required">*</span></span><label v-for="method in deliveryMethods" :key="method" class="radio-item"><input v-model="deliveryForm.deliveryMethod" type="radio" name="deliveryMethod" :value="method" />{{ method }}</label></div>
           <div class="form-line option-line"><span>结算方式<span class="required">*</span></span><label v-for="method in settlementMethods" :key="method" class="radio-item"><input v-model="deliveryForm.settlementMethod" type="radio" name="settlementMethod" :value="method" />{{ method }}</label></div>
           <div class="form-line location-line"><span>始发地</span><select v-model="deliveryForm.originCountry" class="sheet-input"><option>中国</option></select><select v-model="deliveryForm.originProvince" class="sheet-input"><option>广东省</option></select><select v-model="deliveryForm.originCity" class="sheet-input"><option>深圳市</option></select><input v-model="deliveryForm.originAddress" class="sheet-input street-input" type="text" placeholder="请输入街道、园区、楼栋等详细地址" /></div>
-          <div class="form-line location-line"><span>目的地</span><select class="sheet-input"><option>中国</option></select><select class="sheet-input"><option>请选择省份</option></select><select class="sheet-input"><option>请选择城市</option></select></div>
+          <div class="form-line location-line"><span>目的地</span><select class="sheet-input"><option>中国</option></select><select v-model="deliveryForm.destinationProvince" class="sheet-input"><option value="">请选择省份</option><option>上海市</option><option>广东省</option></select><select v-model="deliveryForm.destinationCity" class="sheet-input"><option value="">请选择城市</option><option>上海市</option><option>广州市</option><option>惠州市</option></select></div>
           <label class="form-line textarea-line"><span>详细地址<span class="required">*</span></span><textarea v-model="deliveryForm.address" class="sheet-input"></textarea></label>
           <label class="form-line textarea-line"><span>交付说明</span><textarea v-model="deliveryForm.deliveryNote" class="sheet-input"></textarea></label>
         </div>

@@ -25,6 +25,7 @@ const editMode = ref('')
 const editCode = ref('')
 const editForm = reactive(getEmptyForm())
 const generateOpen = ref(false)
+const printDialogOpen = ref(false)
 const generateForm = reactive({
   boxConfigId: '',
   quantity: 1
@@ -371,18 +372,33 @@ function printSelectedRows() {
     return
   }
 
+  selectedPrintRows.value = cloneRows(selectedRows.value)
+  printDialogOpen.value = true
+}
+
+function confirmPrintRows() {
+  if (!selectedPrintRows.value.length) return
+
   const time = nowText()
-  selectedRows.value.forEach((row) => {
+  rows.value
+    .filter((row) => selectedPrintRows.value.some((item) => item.code === row.code))
+    .forEach((row) => {
     row.printedAt = time
     row.updateTime = time
     row.updater = SYSTEM_UPDATER
   })
-  selectedPrintRows.value = cloneRows(selectedRows.value)
+  selectedPrintRows.value = selectedPrintRows.value.map((row) => ({ ...row, printedAt: time, updateTime: time, updater: SYSTEM_UPDATER }))
   document.body.classList.add('printing-accessory-barcode')
   nextTick(() => window.print())
 }
 
 function handleAfterPrint() {
+  document.body.classList.remove('printing-accessory-barcode')
+}
+
+function closePrintDialog() {
+  printDialogOpen.value = false
+  selectedPrintRows.value = []
   document.body.classList.remove('printing-accessory-barcode')
 }
 
@@ -537,6 +553,45 @@ watch(totalPages, () => {
         </div>
       </article>
     </section>
+
+    <div v-if="printDialogOpen" class="print-dialog-backdrop" @click.self="closePrintDialog">
+      <section class="print-dialog accessory-barcode-dialog" role="dialog" aria-modal="true" aria-label="打印配件箱条码">
+        <div class="print-dialog-toolbar">
+          <div>
+            <strong>打印配件箱条码</strong>
+            <span>已选择 {{ selectedPrintRows.length }} 个配件箱</span>
+          </div>
+          <div class="print-dialog-actions">
+            <button class="btn" type="button" @click="closePrintDialog">取消</button>
+            <button class="btn primary" type="button" @click="confirmPrintRows">打印</button>
+          </div>
+        </div>
+
+        <div class="print-preview-scroll accessory-barcode-preview">
+          <article v-for="item in selectedPrintRows" :key="item.code" class="accessory-print-card">
+            <header>
+              <strong>配件箱条码</strong>
+              <span>{{ item.model }}</span>
+            </header>
+            <div class="barcode" aria-label="配件箱条码">
+              <span
+                v-for="(segment, index) in barcodeSegments"
+                :key="index"
+                :class="{ blank: segment.blank }"
+                :style="{ width: `${segment.width}px` }"
+              ></span>
+            </div>
+            <div class="barcode-code">{{ item.code }}</div>
+            <div class="barcode-meta">
+              <span>型号：{{ item.model }}</span>
+              <span>尺寸：{{ formatDimension(item) }}</span>
+              <span>体积：{{ item.volume }} m³</span>
+              <span>打印：{{ item.printedAt || '待打印' }}</span>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
 
     <div v-if="editMode" class="modal-backdrop" @click.self="closeEdit">
       <section class="org-dialog freight-dialog">

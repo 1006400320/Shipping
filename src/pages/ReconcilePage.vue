@@ -1,6 +1,13 @@
 ﻿<script setup>
-import { computed, ref } from 'vue'
-import { feeItems } from '../data/logistics'
+import { computed, ref, watch } from 'vue'
+import { feeItems, shipmentTasks } from '../data/logistics'
+
+const props = defineProps({
+  taskNo: {
+    type: String,
+    default: ''
+  }
+})
 
 const columns = [
   '序号',
@@ -153,6 +160,8 @@ const reviewStage = ref('待物流上传')
 const selectedListRow = computed(() => listRows.value.find((item) => item.id === selectedId.value))
 const isDetail = computed(() => Boolean(selectedId.value))
 const isCreatingStatement = computed(() => selectedId.value === 'NEW')
+const activeTask = computed(() => shipmentTasks.find((task) => task.no === props.taskNo))
+const isConfirmStatementTask = computed(() => activeTask.value?.status === '确认对账单')
 const canUpload = computed(() => templateDownloaded.value && Boolean(statementFileName.value))
 const parsedTotal = computed(() => parsedStatement.value?.totals?.totalFee || 0)
 const deliveryNoCount = computed(() => {
@@ -300,6 +309,20 @@ function approveHeadquartersFinance() {
   reviewStage.value = '已完成'
   if (selectedListRow.value) selectedListRow.value.stage = reviewStage.value
 }
+
+watch(
+  () => props.taskNo,
+  (taskNo) => {
+    if (!taskNo) return
+    createStatement()
+    if (!isConfirmStatementTask.value) return
+    statementFileName.value = `${taskNo}物流对账单.xlsx`
+    templateDownloaded.value = true
+    parsedStatement.value = buildParsedStatement(templates.cbf, templates.cbf.rows)
+    reviewStage.value = '待物流确认'
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -371,8 +394,8 @@ function approveHeadquartersFinance() {
     <template v-else>
       <section class="page-grid">
         <article class="panel page-hero">
-          <h1>{{ isCreatingStatement ? '新增对账单' : '对账单详情' }}</h1>
-          <p class="subline">物流公司上传对账单后生成明细数据，再由仓管财务和总部财务依次核对。</p>
+          <h1>{{ isConfirmStatementTask ? '确认对账单' : isCreatingStatement ? '新增对账单' : '对账单详情' }}</h1>
+          <p class="subline">物流公司确认对账单明细后提交，再由仓管财务和总部财务依次核对。</p>
         </article>
         <article class="panel metric">
           <div class="metric-label">交货单数量</div>
@@ -388,8 +411,8 @@ function approveHeadquartersFinance() {
 
       <section v-if="isCreatingStatement" class="panel">
         <div class="section-head">
-          <div class="section-title">物流公司上传</div>
-          <div class="section-extra">对账单维度上传，解析后关联多个交货单号</div>
+          <div class="section-title">{{ isConfirmStatementTask ? '物流公司确认' : '物流公司上传' }}</div>
+          <div class="section-extra">对账单维度确认，解析后关联多个交货单号</div>
         </div>
         <div class="reconcile-upload-grid">
           <div class="statement-upload-flow">
@@ -515,9 +538,9 @@ function approveHeadquartersFinance() {
           <div class="section-extra">仓管财务核对后流转总部财务核对</div>
         </div>
         <div class="reconcile-review-flow">
-          <div class="review-step" :class="{ active: reviewStage === '待物流上传', done: reviewStage !== '待物流上传' }">
+          <div class="review-step" :class="{ active: ['待物流上传', '待物流确认'].includes(reviewStage), done: !['待物流上传', '待物流确认'].includes(reviewStage) }">
             <span>1</span>
-            <strong>物流上传对账单</strong>
+            <strong>{{ isConfirmStatementTask ? '物流确认对账单' : '物流上传对账单' }}</strong>
             <small>{{ parsedStatement ? '已生成对账单数据' : '待上传附件' }}</small>
           </div>
           <div class="review-step" :class="{ active: reviewStage === '待仓管财务核对', done: ['待总部财务核对', '已完成'].includes(reviewStage) }">

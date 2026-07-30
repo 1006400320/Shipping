@@ -12,6 +12,7 @@ const checkedCount = ref(0)
 const exceptionCount = ref(0)
 const passCount = ref(0)
 const failCount = ref(0)
+const qcCompleted = ref(false)
 
 const accessoryBoxByMaterialCode = {
   '65002008': 'PJX-2604030003-01',
@@ -33,8 +34,8 @@ const qcRows = ref(
       accessoryBox: accessoryBoxByMaterialCode[code] || '-',
       planned: item.picked,
       checked: index === 2 ? 0 : item.checked,
-      result: index === 2 ? '待抽检' : '通过',
-      note: index === 2 ? '等待抽检' : '抽检通过',
+      result: index === 2 ? '未抽检' : '通过',
+      note: index === 2 ? '随机抽检' : '抽检通过',
       lastScan: index === 2 ? '-' : '10:24:18',
       tone: index === 2 ? 'warn' : 'ok'
     }
@@ -50,11 +51,12 @@ const timeline = ref([
 const stats = computed(() => [
   { label: '抽检数量', value: checkedCount.value },
   { label: '通过', value: passCount.value, tone: 'success' },
-  { label: '异常', value: exceptionCount.value, tone: exceptionCount.value ? 'danger' : '' },
-  { label: '待抽检', value: Math.max(materials.length - checkedCount.value, 0), tone: 'warn' }
+  { label: '异常', value: exceptionCount.value, tone: exceptionCount.value ? 'danger' : '' }
 ])
 
 const progressPercent = computed(() => Math.min(Math.round((checkedCount.value / materials.length) * 100), 100))
+const canCompleteQc = computed(() => !qcCompleted.value && failCount.value === 0 && qcRows.value.every((row) => row.result === '通过'))
+const operationStatus = computed(() => (qcCompleted.value ? '抽检完成' : '扫码中'))
 
 function formatTime(date = new Date()) {
   return date.toLocaleTimeString('zh-CN', { hour12: false })
@@ -71,6 +73,13 @@ function normalizeScanCode(rawCode) {
 }
 
 function submitScan() {
+  if (qcCompleted.value) {
+    latestMessage.value = '当前交货单已抽检完成，无需继续扫码。'
+    latestMessageType.value = 'success'
+    scanInput.value?.select()
+    return
+  }
+
   const rawCode = scanCode.value.trim()
   if (!rawCode) {
     latestMessage.value = '扫码内容为空，请重新扫描。'
@@ -115,6 +124,19 @@ function submitScan() {
   }
 
   nextTick(() => scanInput.value?.select())
+}
+
+function completeQc() {
+  if (!canCompleteQc.value) {
+    latestMessage.value = failCount.value ? '存在抽检异常，请处理后再完成。' : '仍有物料未抽检通过，请先完成扫码。'
+    latestMessageType.value = 'danger'
+    return
+  }
+
+  qcCompleted.value = true
+  latestMessage.value = '抽检完成：当前交货单已通过质检，可进入封箱贴单。'
+  latestMessageType.value = 'success'
+  addTimeline('抽检完成', `交货单 FH202605180001 抽检完成，操作员 ${operator}`, 'success')
 }
 
 function focusScannerInput() {
@@ -164,6 +186,7 @@ onBeforeUnmount(() => {
                 @blur="focusScannerInput"
               />
               <button class="scan-button" type="submit">扫码确认</button>
+              <button class="scan-button secondary" type="button" :disabled="!canCompleteQc" @click="completeQc">抽检完成</button>
             </form>
 
             <div class="progress-meter" aria-label="抽检进度">
@@ -226,7 +249,7 @@ onBeforeUnmount(() => {
             <div class="info-row"><span class="label">扫描设备</span><span class="value">{{ deviceNo }}</span></div>
             <div class="info-row"><span class="label">抽检通过</span><span class="value">{{ passCount }}</span></div>
             <div class="info-row"><span class="label">抽检异常</span><span class="value">{{ failCount }}</span></div>
-            <div class="info-row"><span class="label">操作状态</span><span class="value">扫码中</span></div>
+            <div class="info-row"><span class="label">操作状态</span><span class="value">{{ operationStatus }}</span></div>
           </div>
         </section>
 

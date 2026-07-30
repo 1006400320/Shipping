@@ -131,7 +131,7 @@ const breadcrumbTail = computed(() => {
   if (activePage.value === 'packScan') return activePackTaskNo.value || '封箱贴单作业单'
   if (activePage.value === 'dna') return activeDnaTaskNo.value || 'DNA 录入作业单'
   if (activePage.value === 'shipmentApplication') return activeShipmentApplicationNo.value || '出货申请流程'
-  if (activePage.value === 'leaveConfirm') return activeLeaveTaskNo.value || '开始运输确认单'
+  if (activePage.value === 'leaveConfirm') return activeLeaveTaskNo.value || '交接装车确认单'
   if (activePage.value === 'printOperation') return activePrintTaskNo.value || '待打印交货单'
   if (standalonePageTails[activePage.value]) return standalonePageTails[activePage.value]
 

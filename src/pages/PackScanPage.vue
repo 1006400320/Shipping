@@ -24,6 +24,8 @@ const packingListOpen = ref(false)
 const packingListInfo = {
   remark: '封箱前核对箱内物料，贴单后交由物流发运。',
   deliveryNo: '81113003',
+  salesNo: '10337400',
+  receiverCompany: '东莞市塘厦镇骏景高尔夫花园第二',
   route: '北京 → 深圳',
   receiver: '张*三',
   address: '北京市朝阳区项目仓 → 广东省深圳市南山区科技园'
@@ -35,6 +37,7 @@ const packRows = ref(
     name: item.name,
     planned: item.planned,
     packed: item.packed,
+    unit: '个',
     box: item.box,
     status: item.packed >= item.planned ? '完成' : '待补扫',
     tone: item.packed >= item.planned ? 'ok' : 'warn',
@@ -136,7 +139,17 @@ function openPackingList() {
 
 function closePackingList() {
   packingListOpen.value = false
+  document.body.classList.remove('printing-delivery')
   focusScannerInput()
+}
+
+function printPackingList() {
+  document.body.classList.add('printing-delivery')
+  nextTick(() => window.print())
+}
+
+function handleAfterPrint() {
+  document.body.classList.remove('printing-delivery')
 }
 
 function focusScannerInput() {
@@ -155,10 +168,13 @@ function keepScannerFocus(event) {
 onMounted(() => {
   focusScannerInput()
   window.addEventListener('click', keepScannerFocus)
+  window.addEventListener('afterprint', handleAfterPrint)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('click', keepScannerFocus)
+  window.removeEventListener('afterprint', handleAfterPrint)
+  document.body.classList.remove('printing-delivery')
 })
 </script>
 
@@ -291,41 +307,31 @@ onBeforeUnmount(() => {
         <div class="print-dialog-toolbar">
           <strong>装箱清单</strong>
           <div class="print-dialog-actions">
+            <button class="btn primary" type="button" @click="printPackingList">打印</button>
             <button class="btn" type="button" @click="closePackingList">关闭</button>
           </div>
         </div>
         <div class="print-preview-scroll">
           <div class="delivery-print-page packing-list-sheet">
-            <div class="print-title">
-              <h1>深圳市捷顺科技实业股份有限公司</h1>
-              <strong>装箱清单</strong>
-            </div>
-
-            <div class="print-info-grid packing-list-info-grid">
-              <div class="print-info-list">
-                <div><span>备注</span><strong>{{ packingListInfo.remark }}</strong></div>
-                <div><span>送货单号</span><strong>{{ packingListInfo.deliveryNo }}</strong></div>
-                <div><span>箱码</span><strong>{{ activeBoxNo }}</strong></div>
-              </div>
-              <div class="print-info-list">
-                <div><span>地址</span><strong>{{ packingListInfo.address }}</strong></div>
-                <div><span>线路</span><strong>{{ packingListInfo.route }}</strong></div>
-                <div><span>收件人</span><strong>{{ packingListInfo.receiver }}</strong></div>
-              </div>
-              <div class="print-info-list">
-                <div><span>调拨单码</span><strong>{{ packageNo }}</strong></div>
-                <div><span>装箱数量</span><strong>{{ totalPacked }} / {{ totalPlanned }}</strong></div>
-                <div><span>封箱员</span><strong>{{ packer }}</strong></div>
-              </div>
-            </div>
-
-            <table class="print-material-table packing-list-table">
+            <table class="packing-excel-table">
               <thead>
                 <tr>
-                  <th>序号</th>
-                  <th>物料号</th>
-                  <th>物料描述</th>
-                  <th>数量</th>
+                  <th colspan="5" class="packing-company">深圳市捷顺科技实业股份有限公司</th>
+                </tr>
+                <tr>
+                  <th colspan="5" class="packing-doc-title">装箱清单</th>
+                </tr>
+                <tr>
+                  <th colspan="2" class="packing-meta">销售单号：{{ packingListInfo.salesNo }}</th>
+                  <th class="packing-meta">交货单号：{{ packingListInfo.deliveryNo }}</th>
+                  <th colspan="2" class="packing-meta">收货单位：{{ packingListInfo.receiverCompany }}</th>
+                </tr>
+                <tr>
+                  <th class="packing-index-col">序号</th>
+                  <th class="packing-code-col">物料号</th>
+                  <th class="packing-name-col">物料名称</th>
+                  <th class="packing-unit-col">单位</th>
+                  <th class="packing-qty-col">数量</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,10 +339,11 @@ onBeforeUnmount(() => {
                   <td>{{ index + 1 }}</td>
                   <td>{{ item.code }}</td>
                   <td class="print-text-left">{{ item.name }}</td>
+                  <td>{{ item.unit }}</td>
                   <td>{{ item.packed }}</td>
                 </tr>
-                <tr class="print-total-row">
-                  <td colspan="3">合计</td>
+                <tr class="packing-total-row">
+                  <td colspan="4">合计</td>
                   <td>{{ totalPacked }}</td>
                 </tr>
               </tbody>

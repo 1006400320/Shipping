@@ -35,6 +35,9 @@ const deviceNo = 'SCAN-03'
 const DEFAULT_VOLUME_FEE = 258
 const DEFAULT_WEIGHT_FEE = 0.71
 const DEFAULT_WEIGHT_RATIO = 4000
+const sampleTotalFees = new Map([
+  ['2604030003', 312.34]
+])
 
 const materialMetaMap = new Map(
   materials.map((item) => [
@@ -297,6 +300,22 @@ function formatMaterialFreight(item) {
 
   return formatMoney(info.amount)
 }
+
+const totalFreight = computed(() => {
+  const taskTotalFee = selectedTask.value?.totalFee ?? sampleTotalFees.get(shipmentNo.value)
+  if (taskTotalFee != null) return Number(taskTotalFee)
+
+  const materialFee = pickRows.value.reduce((total, item) => {
+    const amount = getMaterialFreightInfo(item).amount
+    return total + (Number.isFinite(amount) ? amount : 0)
+  }, 0)
+  const accessoryBoxFee = accessoryBoxes.value.reduce((total, box) => {
+    const amount = getAccessoryBoxFreightInfo(box).amount
+    return total + (Number.isFinite(amount) ? amount : 0)
+  }, 0)
+
+  return materialFee + accessoryBoxFee
+})
 
 function getMaterialFreightTooltip(item) {
   const info = getMaterialFreightInfo(item)
@@ -780,6 +799,7 @@ defineExpose({
               <div class="info-row"><span class="label">包管员</span><span class="value">{{ operator }}</span></div>
               <div class="info-row"><span class="label">当前状态</span><span class="value">拣配中</span></div>
               <div class="info-row"><span class="label">物料进度</span><span class="value">{{ totalPicked }} / {{ totalPlanned }}</span></div>
+              <div class="info-row"><span class="label">总运费</span><span class="value">{{ formatMoney(totalFreight) }}</span></div>
               <div class="info-row"><span class="label">下一步</span><span class="value">{{ nextStep }}</span></div>
             </div>
             <div class="pick-exception-actions">

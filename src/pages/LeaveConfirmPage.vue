@@ -26,17 +26,18 @@ const actionNotice = ref('')
 const task = computed(
   () =>
     shipmentTasks.find((item) => item.no === props.taskNo) ||
-    shipmentTasks.find((item) => item.status === '待物流取货') ||
+    shipmentTasks.find((item) => item.status === '待交接装车') ||
     shipmentTasks[0]
 )
 const isTransportMode = computed(() => task.value?.status === '待装车离厂')
-const isSignMode = computed(() => task.value?.status === '待签收')
+const isAppointmentMode = computed(() => task.value?.status === '待预约送货')
+const isSignMode = computed(() => ['待用户签收', '待签收'].includes(task.value?.status))
 
 const pageCopy = computed(() =>
   isSignMode.value
     ? {
-        title: '签收',
-        description: '物流公司将物品送给签收人后，询问签收人签收码，录入后确认签收。',
+        title: '用户签收',
+        description: '物流公司将物品送给签收人后，询问签收人签收码，录入后确认用户签收。',
         primaryCardTitle: '签收码确认',
         primaryCardNote: '物流人员录入签收码后提交',
         operatorLabel: '签收人',
@@ -46,28 +47,44 @@ const pageCopy = computed(() =>
         uploadNote: '签收现场照片',
         uploadHint: '用于记录交付现场、签收人确认或异常情况',
         submitLabel: '确认签收',
-        success: '已确认签收，下一步由物流公司上传对账单。',
+        success: '已确认用户签收，下一步由物流公司上传对账单。',
         remarkPlaceholder: '填写签收说明、异常情况、客户反馈或后续对账备注'
       }
     : isTransportMode.value
     ? {
-        title: '开始运输',
-        description: '物流人员到仓库后，核对物料和配件箱数量，留存附件并确认开始运输。',
-        primaryCardTitle: '运输确认',
+        title: '确认离厂',
+        description: '物流人员完成装车后，核对物料、配件箱、车辆和物流单号并确认离厂。',
+        primaryCardTitle: '离厂确认',
         primaryCardNote: '物流人员核对后提交',
         operatorLabel: '物流人员',
         phoneLabel: '物流人员手机号',
-        checkTitle: '运输核对',
-        materialTitle: '运输物料',
+        checkTitle: '离厂核对',
+        materialTitle: '离厂物料',
         uploadNote: '现场照片或装车照片',
         uploadHint: '用于记录物料、配件箱、车辆或装车现场',
-        submitLabel: '开始运输',
-        success: '已确认开始运输，任务进入运输中状态。',
+        submitLabel: '确认离厂',
+        success: '已确认离厂，任务进入运输中状态。',
         remarkPlaceholder: '填写装车说明、异常情况或运输补充信息'
       }
+    : isAppointmentMode.value
+    ? {
+        title: '预约送货',
+        description: '物流公司与收货人确认送货时间，登记预约结果并发送签收码。',
+        primaryCardTitle: '送货预约',
+        primaryCardNote: '物流人员预约后提交',
+        operatorLabel: '预约联系人',
+        phoneLabel: '联系人手机号',
+        checkTitle: '预约核对',
+        materialTitle: '预约送货物料',
+        uploadNote: '预约凭证或沟通记录',
+        uploadHint: '用于记录电话、短信、企微或客户确认截图',
+        submitLabel: '预约送货',
+        success: '已完成预约送货，任务进入待用户签收状态。',
+        remarkPlaceholder: '填写预约时间、客户要求、异常情况或改约说明'
+      }
     : {
-        title: '确认物流取货',
-        description: '仓管员与物流公司现场交接，核对货物、单据、提货人信息并留存附件。',
+        title: '交接装车',
+        description: '仓管员与物流公司现场交接装车，核对货物、单据、提货人信息并留存附件。',
         primaryCardTitle: '现场交接',
         primaryCardNote: '仓管员核对后提交',
         operatorLabel: '提货人',
@@ -76,8 +93,8 @@ const pageCopy = computed(() =>
         materialTitle: '交接物料',
         uploadNote: '现场照片或装车照片',
         uploadHint: '用于记录货物交接现场、车辆或封签状态',
-        submitLabel: '确认物流取货',
-        success: '已确认物流取货，任务进入装车离厂节点。',
+        submitLabel: '交接装车',
+        success: '已完成交接装车，任务进入装车离厂节点。',
         remarkPlaceholder: '填写异常说明、交接补充信息或物流要求'
       }
 )
@@ -85,6 +102,12 @@ const pageCopy = computed(() =>
 const checks = computed(() =>
   isSignMode.value
     ? []
+    : isAppointmentMode.value
+    ? [
+        { key: 'contact', label: '已与收货人确认送货时间' },
+        { key: 'phone', label: '联系人手机号已核对无误' },
+        { key: 'code', label: '签收码已发送或待系统发送' }
+      ]
     : isTransportMode.value
     ? [
         { key: 'materials', label: '物料明细已与交货单核对一致' },
@@ -105,6 +128,7 @@ const checkedCount = computed(() => checks.value.filter((item) => checkedKeys.va
 const normalizedWaybillNos = computed(() => waybillNos.value.map((item) => item.trim()).filter(Boolean))
 const canConfirm = computed(() => {
   if (isSignMode.value) return logisticsStaff.value && signCode.value.trim()
+  if (isAppointmentMode.value) return checkedCount.value === checks.value.length && logisticsStaff.value && staffPhone.value
   return (
     checkedCount.value === checks.value.length &&
     logisticsStaff.value &&
@@ -206,7 +230,7 @@ function confirmAction() {
           </div>
           <div class="handover-form">
             <label>
-              <span>{{ isSignMode ? '签收时间' : isTransportMode ? '发车时间' : '交接时间' }}</span>
+              <span>{{ isSignMode ? '签收时间' : isTransportMode ? '离厂时间' : '交接时间' }}</span>
               <input v-model="handoverTime" class="field" type="datetime-local" :readonly="isSignMode" />
             </label>
             <label v-if="!isSignMode">

@@ -5,7 +5,7 @@ import { shipmentTasks } from '../data/logistics'
 const emit = defineEmits(['open-leave'])
 
 const mobilePendingTotal = computed(() =>
-  shipmentTasks.filter((task) => ['待装车离厂', '待签收'].includes(task.status)).length
+  shipmentTasks.filter((task) => ['待装车离厂', '待用户签收'].includes(task.status)).length
 )
 
 const cards = computed(() => {
@@ -28,13 +28,13 @@ const cards = computed(() => {
       key: 'signConfirm',
       tone: 'green',
       mark: '02',
-      title: '签收确认入口',
-      subtitle: '物流人员向签收人询问签收码，填写签收码后完成确认签收。',
-      actionLabel: '进入确认签收',
-      statLabel: '待签收',
-      statValue: `${shipmentTasks.filter((task) => task.status === '待签收').length} 单`,
-      helper: `默认打开 ${findTaskNo('待签收') || '待签收任务'}`,
-      open: () => emit('open-leave', findTaskNo('待签收'))
+      title: '用户签收入口',
+      subtitle: '物流人员向签收人询问签收码，填写签收码后完成用户签收。',
+      actionLabel: '进入用户签收',
+      statLabel: '待用户签收',
+      statValue: `${shipmentTasks.filter((task) => task.status === '待用户签收').length} 单`,
+      helper: `默认打开 ${findTaskNo('待用户签收') || '待用户签收任务'}`,
+      open: () => emit('open-leave', findTaskNo('待用户签收'))
     }
   ]
 })
@@ -48,14 +48,14 @@ const cards = computed(() => {
           <div class="employee-mobile-eyebrow">移动端 / 物流端</div>
           <h1>物流端</h1>
           <p class="subline">
-            面向物流与仓管作业人员，支持装车离厂与签收码确认。
+            面向物流与仓管作业人员，支持装车离厂与用户签收确认。
           </p>
         </div>
 
         <div class="employee-mobile-overview">
           <span>今日待处理</span>
           <strong>{{ mobilePendingTotal }} 单</strong>
-          <em>离厂与签收任务待确认</em>
+          <em>离厂与用户签收任务待确认</em>
         </div>
       </div>
     </section>

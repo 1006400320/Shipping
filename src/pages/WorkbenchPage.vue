@@ -23,6 +23,8 @@ const alertDialogMessage = ref('')
 const currentPage = ref(1)
 const feeChangeDialogOpen = ref(false)
 const activeFeeTask = ref(null)
+const voidConfirmDialogOpen = ref(false)
+const activeVoidTask = ref(null)
 const detailDeliveryInfo = ref(null)
 const feeChangeForm = ref({
   feeType: feeChangeTypes[0],
@@ -34,11 +36,11 @@ const pageSize = 20
 const feeChangeEnabledStatuses = [
   '待抽检',
   '待封箱贴单',
-  '待录入DNA',
-  '待物流取货',
+  '待交接装车',
   '待装车离厂',
-  '待签收',
-  '待上传对账单',
+  '待预约送货',
+  '待用户签收',
+  '确认对账单',
   '待仓管对账',
   '待财务对账'
 ]
@@ -46,18 +48,51 @@ const feeChangeEnabledStatuses = [
 const taskStatusTabs = [
   { key: 'draft', label: '待完善', status: '待完善' },
   { key: 'print', label: '待打印', status: '待打印' },
+  { key: 'dna', label: '待录入DNA', status: '待录入DNA' },
   { key: 'pick', label: '待拣配', status: '待拣配' },
   { key: 'qc', label: '待抽检', status: '待抽检' },
   { key: 'pack', label: '待封箱贴单', status: '待封箱贴单' },
-  { key: 'dna', label: '待录入DNA', status: '待录入DNA' },
-  { key: 'pickup', label: '待物流取货', status: '待物流取货' },
+  { key: 'pickup', label: '待交接装车', status: '待交接装车' },
   { key: 'leave', label: '待装车离厂', status: '待装车离厂' },
-  { key: 'sign', label: '待签收', status: '待签收' },
-  { key: 'reconcile', label: '待上传对账单', status: '待上传对账单' },
+  { key: 'appointment', label: '待预约送货', status: '待预约送货' },
+  { key: 'user-sign', label: '待用户签收', status: '待用户签收' },
+  { key: 'confirm-statement', label: '确认对账单', status: '确认对账单' },
+  { key: 'reconcile', label: '待仓管对账', status: '待仓管对账' },
   { key: 'warehouse-reconcile', label: '待仓管对账', status: '待仓管对账' },
   { key: 'finance-reconcile', label: '待财务对账', status: '待财务对账' },
   { key: 'voided', label: '作废', status: '作废' }
 ]
+
+const taskStatusOrder = new Map(taskStatusTabs.map((tab, index) => [tab.status, index]))
+const sampleTotalFees = new Map([
+  ['2604030001', 286.20],
+  ['2604030002', 184.80],
+  ['2604030003', 312.34],
+  ['2604030004', 168.45],
+  ['2604030005', 245.60],
+  ['2604030006', 298.20],
+  ['2604030007', 156.90],
+  ['2604030008', 132.50],
+  ['2604030009', 226.70],
+  ['2604030010', 118.40],
+  ['2604030011', 128.00],
+  ['2604030012', 136.80],
+  ['2604030013', 142.60],
+  ['2604030014', 205.10],
+  ['2604030015', 176.30]
+])
+const sampleMaterialFees = new Map([
+  ['MAT-A1001', 28.65],
+  ['MAT-A2008', 96.78],
+  ['MAT-L3002', 164.52],
+  ['MAT-C0099', 22.39]
+])
+const logisticsOperationStatuses = new Set([
+  '待装车离厂',
+  '待预约送货',
+  '待用户签收',
+  '确认对账单'
+])
 
 const selectedShipment = computed(() => shipmentTasks.find((task) => task.no === selectedTaskNo.value) || null)
 const isTaskList = computed(() => !selectedShipment.value)
@@ -91,6 +126,9 @@ const filteredTasks = computed(() => {
       task.salesOrderNo,
       task.receiverCompany
     ].some((value) => String(value || '').toLowerCase().includes(query))
+  }).sort((a, b) => {
+    const statusDiff = (taskStatusOrder.get(a.status) ?? taskStatusOrder.size) - (taskStatusOrder.get(b.status) ?? taskStatusOrder.size)
+    return statusDiff || a.no.localeCompare(b.no)
   })
 })
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredTasks.value.length / pageSize)))
@@ -118,11 +156,16 @@ const detailSummary = computed(() => {
   const task = selectedShipment.value
   if (!task) return []
 
-  return [
+  const summary = [
+    { label: '送货单状态', value: task.status, note: '按当前流程节点显示' },
     { label: '物料进度', value: `${task.progress.done} / ${task.progress.total}`, note: '按扫码结果汇总' },
     { label: '箱数', value: `${task.boxes.total} 箱`, note: `${task.boxes.sealed} 箱已封，${task.boxes.active} 箱进行中` },
-    { label: '费用状态', value: task.feeStatus, note: task.status === '待上传对账单' ? '签收后由物流公司上传对账单' : '对账流程按当前状态推进' }
+    { label: '费用状态', value: task.feeStatus, note: ['待用户签收', '确认对账单'].includes(task.status) ? '用户签收后由物流公司确认并进入对账' : '对账流程按当前状态推进' }
   ]
+
+  summary.push({ label: '总运费', value: formatTotalFee(task), note: canShowTotalFee(task) ? '拣配后按物料与箱码计费汇总' : '拣配完成后计算' })
+
+  return summary
 })
 
 const detailDeliveryFields = computed(() => {
@@ -151,9 +194,16 @@ const detailDeliveryFields = computed(() => {
     { label: '要求到店日', value: form.requiredArrivalDate },
     { label: '接货人电话', value: form.handoverContact },
     { label: '交付说明', value: form.deliveryNote },
-    { label: '运费合计', value: info.totalFee != null ? Number(info.totalFee).toFixed(2) : '' }
+    { label: '运费合计', value: canShowTotalFee(task) && info.totalFee != null ? Number(info.totalFee).toFixed(2) : '' }
   ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '')
 })
+
+const detailOperationRecords = computed(() =>
+  (selectedShipment.value?.operationRecords || []).map((record) => ({
+    ...record,
+    operatorOrg: record.operatorOrg || record.company || '-'
+  }))
+)
 
 function taskActions(task) {
   const actions = ['详情']
@@ -164,10 +214,11 @@ function taskActions(task) {
   if (task.status === '待抽检') return [...actions, '抽检']
   if (task.status === '待封箱贴单') return [...actions, '封箱贴单']
   if (task.status === '待录入DNA') return [...actions, '录入DNA']
-  if (task.status === '待物流取货') return [...actions, '确认物流取货']
-  if (task.status === '待装车离厂') return [...actions, '开始运输']
-  if (task.status === '待签收') return [...actions, '签收']
-  if (task.status === '待上传对账单') return [...actions, '上传对账单']
+  if (task.status === '待交接装车') return [...actions, '交接装车']
+  if (task.status === '待装车离厂') return [...actions, '确认离厂']
+  if (task.status === '待预约送货') return [...actions, '预约送货']
+  if (task.status === '待用户签收' || task.status === '待签收') return [...actions, '用户签收']
+  if (task.status === '确认对账单') return [...actions, '确认对账单']
   if (task.status === '待仓管对账') return [...actions, '仓管对账']
   if (task.status === '待财务对账') return [...actions, '财务对账']
 
@@ -176,6 +227,28 @@ function taskActions(task) {
 
 function canChangeFee(task) {
   return feeChangeEnabledStatuses.includes(task.status)
+}
+
+function canShowTotalFee(task) {
+  return !['待完善', '待打印', '待录入DNA', '待拣配'].includes(task.status)
+}
+
+function formatTotalFee(task) {
+  if (!canShowTotalFee(task)) return ''
+
+  const totalFee = task.totalFee ?? sampleTotalFees.get(task.no)
+  return totalFee != null ? Number(totalFee).toFixed(2) : '-'
+}
+
+function formatMaterialFee(item) {
+  if (!selectedShipment.value || !canShowTotalFee(selectedShipment.value)) return ''
+
+  const fee = item.freightFee ?? item.transportFee ?? sampleMaterialFees.get(item.code)
+  return fee != null ? Number(fee).toFixed(2) : '-'
+}
+
+function getOperationParty(task) {
+  return logisticsOperationStatuses.has(task.status) ? '物流' : '捷顺'
 }
 
 function tableTaskActions(task) {
@@ -346,6 +419,27 @@ function closeFeeChangeDialog() {
   activeFeeTask.value = null
 }
 
+function openVoidConfirm(task) {
+  activeVoidTask.value = task
+  voidConfirmDialogOpen.value = true
+}
+
+function closeVoidConfirm() {
+  voidConfirmDialogOpen.value = false
+  activeVoidTask.value = null
+}
+
+function confirmVoidTask() {
+  if (!activeVoidTask.value) return
+  activeVoidTask.value.status = '作废'
+  activeVoidTask.value.feeStatus = '作废'
+  activeVoidTask.value.currentNode = '作废'
+  activeVoidTask.value.tone = 'neutral'
+  selectedTaskNos.value = selectedTaskNos.value.filter((no) => no !== activeVoidTask.value.no)
+  toolbarNotice.value = `${activeVoidTask.value.no} 已作废`
+  closeVoidConfirm()
+}
+
 function submitFeeChangeFlow() {
   if (!activeFeeTask.value) return
 
@@ -419,18 +513,23 @@ function handleTaskAction(action, task) {
     return
   }
 
-  if (action === '确认物流取货' || action === '开始运输' || action === '签收') {
+  if (action === '交接装车' || action === '确认离厂' || action === '预约送货' || action === '用户签收' || action === '签收') {
     openLeaveTask(task)
     return
   }
 
-  if (action === '上传对账单') {
+  if (action === '确认对账单') {
     emit('open-reconcile', task.no)
     return
   }
 
   if (action === '费用变更') {
     openFeeChangeFlow(task)
+    return
+  }
+
+  if (action === '作废') {
+    openVoidConfirm(task)
     return
   }
 
@@ -486,6 +585,7 @@ defineExpose({ showAllTasks })
           <button class="btn primary" type="button" @click="runSearch">查询</button>
           <button class="btn" type="button" @click="resetFilters">重置</button>
           <button class="btn" type="button" @click="exportTasks">导出</button>
+          <button class="btn primary" type="button" @click="emit('open-complete', '')">创建送货单</button>
           <button class="btn create-btn" type="button" @click="batchPrintTasks">批量打印</button>
           <button class="btn primary" type="button" @click="openPickScanDialog">开始拣配</button>
         </div>
@@ -508,6 +608,8 @@ defineExpose({ showAllTasks })
                 <th>合同号</th>
                 <th>销售单号</th>
                 <th>收货单位</th>
+                <th>操作方</th>
+                <th>总运费</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -537,6 +639,13 @@ defineExpose({ showAllTasks })
                 <td>{{ task.contractNo }}</td>
                 <td>{{ task.salesOrderNo }}</td>
                 <td>{{ task.receiverCompany }}</td>
+                <td
+                  class="operation-party-cell"
+                  :class="getOperationParty(task) === '物流' ? 'party-logistics' : 'party-jieshun'"
+                >
+                  <span>{{ getOperationParty(task) }}</span>
+                </td>
+                <td>{{ formatTotalFee(task) }}</td>
                 <td class="action-cell">
                   <button
                     v-for="action in tableTaskActions(task)"
@@ -553,7 +662,7 @@ defineExpose({ showAllTasks })
                 </td>
               </tr>
               <tr v-if="filteredTasks.length === 0">
-                <td class="empty-cell" colspan="11">暂无符合条件的交货单</td>
+                <td class="empty-cell" colspan="13">暂无符合条件的交货单</td>
               </tr>
             </tbody>
           </table>
@@ -626,6 +735,21 @@ defineExpose({ showAllTasks })
 
       <section class="panel">
         <div class="section-head">
+          <div class="section-title">操作记录</div>
+          <div class="section-extra">展示当前交货单的关键操作流转</div>
+        </div>
+        <div v-if="detailOperationRecords.length" class="timeline detail-operation-timeline">
+          <div v-for="record in detailOperationRecords" :key="`${record.time}-${record.operator}-${record.action}`" class="event">
+            <div class="event-time">{{ record.time }}</div>
+            <div class="event-main">{{ record.action }}</div>
+            <div class="event-note detail-operation-operator">{{ record.operatorOrg }} · {{ record.operator }}</div>
+          </div>
+        </div>
+        <div v-else class="empty-cell">暂无操作记录</div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
           <div class="section-title">物料明细</div>
           <div class="section-extra">拣配、抽检、封箱均来自扫码记录</div>
         </div>
@@ -640,6 +764,7 @@ defineExpose({ showAllTasks })
                 <th>已检</th>
                 <th>已装箱</th>
                 <th>箱码</th>
+                <th>运费</th>
                 <th>状态</th>
               </tr>
             </thead>
@@ -652,6 +777,7 @@ defineExpose({ showAllTasks })
                 <td>{{ item.checked }}</td>
                 <td>{{ item.packed }}</td>
                 <td>{{ item.box }}</td>
+                <td>{{ formatMaterialFee(item) }}</td>
                 <td>{{ item.packed >= item.planned ? '完成' : '处理中' }}</td>
               </tr>
             </tbody>
@@ -785,6 +911,20 @@ defineExpose({ showAllTasks })
         <div class="alert-dialog-body">{{ alertDialogMessage }}</div>
         <div class="org-dialog-foot">
           <button class="btn primary" type="button" @click="closeAlertDialog">确定</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="voidConfirmDialogOpen" class="modal-backdrop">
+      <section class="org-dialog alert-dialog" role="dialog" aria-modal="true" aria-label="作废确认">
+        <div class="org-dialog-head">
+          <strong>作废确认</strong>
+          <button class="dialog-close" type="button" aria-label="关闭" @click="closeVoidConfirm">×</button>
+        </div>
+        <div class="alert-dialog-body">确认后将把 {{ activeVoidTask?.no }} 的状态改成“作废”。</div>
+        <div class="org-dialog-foot">
+          <button class="btn" type="button" @click="closeVoidConfirm">取消</button>
+          <button class="btn primary" type="button" @click="confirmVoidTask">确认作废</button>
         </div>
       </section>
     </div>
