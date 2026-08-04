@@ -227,24 +227,41 @@ function toggleSidebar() {
 
 <template>
   <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-mark">LS</span>
-        <span class="brand-name">物流过程管控</span>
+    <header class="global-header">
+      <div class="global-header-left">
         <button
-          class="sidebar-toggle"
+          class="global-menu-btn"
           type="button"
           :aria-label="sidebarCollapsed ? '展开菜单' : '收起菜单'"
           :title="sidebarCollapsed ? '展开菜单' : '收起菜单'"
-          :aria-expanded="!sidebarCollapsed"
           @click="toggleSidebar"
         >
-          <span class="sidebar-toggle-icon" aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
         </button>
+        <div class="header-brand-logo" aria-label="捷顺科技">
+          <img src="/jieshun-logo.png" alt="捷顺科技" />
+        </div>
+        <div class="header-system-title">物流管理系统</div>
       </div>
+      <nav class="global-header-nav" aria-label="系统导航">
+        <button type="button">工作台</button>
+        <button type="button">帮助中心</button>
+        <button class="message-entry" type="button">
+          消息
+          <span>8</span>
+        </button>
+        <button class="user-entry" type="button" aria-label="用户中心">忻</button>
+        <button class="tenant-entry" type="button">忻疆 <i aria-hidden="true"></i></button>
+      </nav>
+    </header>
 
+    <aside class="sidebar">
       <template v-for="group in navGroups" :key="group.title">
-        <div class="nav-title">{{ group.title }}</div>
+        <div class="nav-title">
+          <span class="nav-title-icon" aria-hidden="true"></span>
+          <span class="nav-title-label">{{ group.title }}</span>
+          <span class="nav-title-chevron" aria-hidden="true"></span>
+        </div>
         <button
           v-for="item in group.items"
           :key="item.key"
@@ -254,10 +271,22 @@ function toggleSidebar() {
           :title="sidebarCollapsed ? item.label : ''"
           @click="switchPage(item.key)"
         >
-          <span class="nav-item-mark" aria-hidden="true">{{ item.label.slice(0, 1) }}</span>
+          <span class="nav-item-mark" aria-hidden="true"></span>
           <span class="nav-item-label">{{ item.label }}</span>
         </button>
       </template>
+
+      <button
+        class="sidebar-bottom-toggle"
+        type="button"
+        :aria-label="sidebarCollapsed ? '展开菜单' : '收起菜单'"
+        :title="sidebarCollapsed ? '展开菜单' : '收起菜单'"
+        :aria-expanded="!sidebarCollapsed"
+        @click="toggleSidebar"
+      >
+        <span class="sidebar-bottom-icon" aria-hidden="true"></span>
+        <span class="sidebar-bottom-label">{{ sidebarCollapsed ? '展开菜单' : '收起菜单' }}</span>
+      </button>
     </aside>
 
     <main class="main">

@@ -469,6 +469,29 @@ export const shipmentTasks = [
     boxes: { total: 0, sealed: 0, active: 0 },
     feeStatus: '作废',
     tone: 'neutral'
+  },
+  {
+    no: '2604030020',
+    customer: '上海第一分公司',
+    receiver: '沈工',
+    phone: '13800106620',
+    address: '上海市浦东新区金桥出口加工区',
+    applicationNo: '13245678',
+    deliveryNo: '81113004',
+    transferNo: '',
+    requiredDate: '2026-02-26',
+    contractNo: '94126000001',
+    salesOrderNo: '1033001',
+    receiverCompany: '上海第一分公司',
+    carrier: '德邦物流',
+    currentNode: '交接装车',
+    status: '待交接装车',
+    priority: '普通',
+    plannedDate: '2026-02-26',
+    progress: { done: 10, total: 10 },
+    boxes: { total: 2, sealed: 2, active: 0 },
+    feeStatus: '待物流上传',
+    tone: 'green'
   }
 ]
 

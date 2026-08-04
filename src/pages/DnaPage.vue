@@ -4,7 +4,7 @@ import { dnaRecords } from '../data/logistics'
 
 const scanInput = ref(null)
 const scanCode = ref('DNA-')
-const latestMessage = ref('系统无法自动判断物料是否为大件，请人工校验；大件录入 DNA，非大件标记无需录入。')
+const latestMessage = ref('系统无法自动判断物料是否为大件，由录入员人工校验；大件录入 DNA，非大件标记无需录入。')
 const latestMessageType = ref('neutral')
 const confirmDialogOpen = ref(false)
 const dnaCompleted = ref(false)
@@ -31,9 +31,10 @@ const records = ref(
 
 const pendingCount = computed(() => records.value.filter((item) => pendingStatuses.includes(item.status)).length)
 const completedCount = computed(() => records.value.filter((item) => !pendingStatuses.includes(item.status)).length)
-const dnaRequiredCount = computed(() => records.value.filter((item) => item.status === '已录入 DNA').length)
+const dnaRequiredCount = computed(() => records.value.filter((item) => item.status === '已录入DNA').length)
 const noDnaCount = computed(() => records.value.filter((item) => item.status === '无需录入').length)
 const canFinishDna = computed(() => pendingCount.value === 0 && completedCount.value > 0 && !dnaCompleted.value)
+
 function formatTime(date = new Date()) {
   return date.toLocaleTimeString('zh-CN', { hour12: false })
 }
@@ -80,7 +81,7 @@ function submitScan() {
 
   const target = records.value.find((item) => pendingStatuses.includes(item.status))
   if (!target) {
-    latestMessage.value = `扫码异常：${code} 无待人工校验的物料。`
+    latestMessage.value = `扫码异常：${code} 没有可校验的待处理物料。`
     latestMessageType.value = 'danger'
     nextTick(() => scanInput.value?.select())
     return
@@ -88,7 +89,7 @@ function submitScan() {
 
   target.dnaNo = code
   target.verifier = verifier
-  target.status = '已录入 DNA'
+  target.status = '已录入DNA'
   target.lastScan = formatTime()
   latestMessage.value = `人工校验为大件：${target.material} 已绑定 ${code}，设备 ${deviceNo}。`
   latestMessageType.value = 'success'
@@ -96,10 +97,20 @@ function submitScan() {
   nextTick(() => scanInput.value?.select())
 }
 
-function markNoDna(item) {
+function toggleNoDna(item) {
   if (dnaCompleted.value) {
     latestMessage.value = 'DNA 已录入完毕，不能继续修改人工校验结果。'
     latestMessageType.value = 'danger'
+    return
+  }
+
+  if (item.status === '无需录入') {
+    item.dnaNo = '待录入'
+    item.verifier = '未校验'
+    item.status = '待处理'
+    item.lastScan = '-'
+    latestMessage.value = `已切回待处理：${item.material} 可以重新进入人工校验。`
+    latestMessageType.value = 'success'
     return
   }
 
@@ -164,7 +175,7 @@ onMounted(() => {
       </article>
 
       <article class="panel metric">
-        <div class="metric-label">待校验物料</div>
+        <div class="metric-label">待处理物料</div>
         <div class="metric-value">{{ records.length }}</div>
         <div class="metric-note">已处理 {{ completedCount }} 个，待处理 {{ pendingCount }} 个</div>
       </article>
@@ -205,10 +216,10 @@ onMounted(() => {
                 <button
                   class="btn table-action no-dna-action"
                   type="button"
-                  :disabled="dnaCompleted || !pendingStatuses.includes(item.status)"
-                  @click="markNoDna(item)"
+                  :disabled="dnaCompleted || (!pendingStatuses.includes(item.status) && item.status !== '无需录入')"
+                  @click="toggleNoDna(item)"
                 >
-                  无需录入DNA
+                  {{ item.status === '无需录入' ? '切回待处理' : '无需录入DNA' }}
                 </button>
               </td>
             </tr>

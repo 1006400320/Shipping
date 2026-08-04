@@ -8,6 +8,8 @@ const emit = defineEmits(['open-complete', 'open-print', 'open-pick', 'open-qc',
 const selectedTaskNo = ref('')
 const activeTaskTab = ref('all')
 const keyword = ref('')
+const quickScanInput = ref(null)
+const quickScanCode = ref('')
 const startDate = ref('2026-02-01')
 const endDate = ref('2026-02-28')
 const carrierFilter = ref('')
@@ -297,6 +299,38 @@ function runSearch() {
   toolbarNotice.value = `已查询到 ${filteredTasks.value.length} 条数据`
 }
 
+function normalizeQuickScanCode(rawCode) {
+  return rawCode.trim().replace(/\s+/g, '')
+}
+
+function quickScanSearch() {
+  const code = normalizeQuickScanCode(quickScanCode.value)
+  if (!code) {
+    toolbarNotice.value = '请先扫描或输入送货单号'
+    nextTick(() => quickScanInput.value?.focus())
+    return
+  }
+
+  activeTaskTab.value = 'all'
+  keyword.value = code
+  startDate.value = ''
+  endDate.value = ''
+  carrierFilter.value = ''
+  currentPage.value = 1
+
+  const exactMatch = shipmentTasks.find((task) => task.no === code)
+  const matches = shipmentTasks.filter((task) => task.no.includes(code))
+  const target = exactMatch || (matches.length === 1 ? matches[0] : null)
+  if (target) {
+    selectedTaskNos.value = [target.no]
+    toolbarNotice.value = `已定位送货单 ${target.no}`
+    return
+  }
+
+  selectedTaskNos.value = []
+  toolbarNotice.value = `未找到送货单 ${code}`
+}
+
 function exportTasks() {
   toolbarNotice.value = `已导出当前 ${filteredTasks.value.length} 条数据`
 }
@@ -324,6 +358,21 @@ function batchPrintTasks() {
   }
 
   emit('open-print', selectedTaskNos.value.join(','))
+}
+
+function batchHandoverTasks() {
+  if (selectedTasks.value.length === 0) {
+    showAlertDialog('请先勾选需要批量交接装车的送货单')
+    return
+  }
+
+  const invalidTasks = selectedTasks.value.filter((task) => task.status !== '待交接装车')
+  if (invalidTasks.length > 0) {
+    showAlertDialog(`批量交接装车失败：${invalidTasks.map((task) => `${task.no}(${task.status})`).join('、')} 不是待交接装车状态`)
+    return
+  }
+
+  emit('open-leave', selectedTaskNos.value.join(','))
 }
 
 function showAlertDialog(message) {
@@ -566,6 +615,22 @@ defineExpose({ showAllTasks })
             <span>送货单号、交货单号、调拨单号</span>
             <input v-model="keyword" type="search" placeholder="请输入关键字" />
           </label>
+          <form class="quick-scan-search" @submit.prevent="quickScanSearch">
+            <label class="filter-field quick-scan-field">
+              <span>扫码查送货单</span>
+              <input
+                ref="quickScanInput"
+                v-model="quickScanCode"
+                type="search"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="扫描送货单号"
+                aria-label="扫码快速查询送货单"
+                @focus="quickScanInput?.select()"
+              />
+            </label>
+            <button class="btn primary" type="submit">定位</button>
+          </form>
           <label class="filter-field date-field">
             <span>要求到货日期</span>
             <input v-model="startDate" type="date" />
@@ -588,6 +653,7 @@ defineExpose({ showAllTasks })
           <button class="btn primary" type="button" @click="emit('open-complete', '')">创建送货单</button>
           <button class="btn create-btn" type="button" @click="batchPrintTasks">批量打印</button>
           <button class="btn primary" type="button" @click="openPickScanDialog">开始拣配</button>
+          <button class="btn primary" type="button" @click="batchHandoverTasks">批量交接装车</button>
         </div>
 
         <div v-if="toolbarNotice" class="toolbar-notice">{{ toolbarNotice }}</div>
@@ -621,7 +687,7 @@ defineExpose({ showAllTasks })
                 <td class="link-cell">
                   <button class="text-link" type="button" @click="showTaskDetail(task.no)">{{ task.no }}</button>
                 </td>
-                <td>{{ task.status }}</td>
+                <td :title="task.status" :data-full="task.status">{{ task.status }}</td>
                 <td class="link-cell">
                   <button
                     class="text-link"
@@ -633,19 +699,19 @@ defineExpose({ showAllTasks })
                     {{ task.applicationNo || '-' }}
                   </button>
                 </td>
-                <td>{{ task.deliveryNo || '-' }}</td>
-                <td>{{ task.transferNo || '-' }}</td>
-                <td>{{ task.requiredDate }}</td>
-                <td>{{ task.contractNo }}</td>
-                <td>{{ task.salesOrderNo }}</td>
-                <td>{{ task.receiverCompany }}</td>
+                <td :title="task.deliveryNo || '-'" :data-full="task.deliveryNo || '-'">{{ task.deliveryNo || '-' }}</td>
+                <td :title="task.transferNo || '-'" :data-full="task.transferNo || '-'">{{ task.transferNo || '-' }}</td>
+                <td :title="task.requiredDate" :data-full="task.requiredDate">{{ task.requiredDate }}</td>
+                <td :title="task.contractNo" :data-full="task.contractNo">{{ task.contractNo }}</td>
+                <td :title="task.salesOrderNo" :data-full="task.salesOrderNo">{{ task.salesOrderNo }}</td>
+                <td :title="task.receiverCompany" :data-full="task.receiverCompany">{{ task.receiverCompany }}</td>
                 <td
                   class="operation-party-cell"
                   :class="getOperationParty(task) === '物流' ? 'party-logistics' : 'party-jieshun'"
                 >
                   <span>{{ getOperationParty(task) }}</span>
                 </td>
-                <td>{{ formatTotalFee(task) }}</td>
+                <td :title="formatTotalFee(task)" :data-full="formatTotalFee(task)">{{ formatTotalFee(task) }}</td>
                 <td class="action-cell">
                   <button
                     v-for="action in tableTaskActions(task)"
