@@ -37,11 +37,16 @@ const pageSize = 20
 
 const feeChangeEnabledStatuses = [
   '待抽检',
-  '待封箱贴单',
+  '待封配件箱',
   '待交接装车',
   '待装车离厂',
   '待预约送货',
   '待用户签收',
+  '待仓管确认费用',
+  '待物流确认费用',
+  '待生成账单',
+  '待物流开票',
+  '待发票付款',
   '确认对账单',
   '待仓管对账',
   '待财务对账'
@@ -53,15 +58,16 @@ const taskStatusTabs = [
   { key: 'dna', label: '待录入DNA', status: '待录入DNA' },
   { key: 'pick', label: '待拣配', status: '待拣配' },
   { key: 'qc', label: '待抽检', status: '待抽检' },
-  { key: 'pack', label: '待封箱贴单', status: '待封箱贴单' },
+  { key: 'pack', label: '待封配件箱', status: '待封配件箱' },
   { key: 'pickup', label: '待交接装车', status: '待交接装车' },
   { key: 'leave', label: '待装车离厂', status: '待装车离厂' },
   { key: 'appointment', label: '待预约送货', status: '待预约送货' },
   { key: 'user-sign', label: '待用户签收', status: '待用户签收' },
-  { key: 'confirm-statement', label: '确认对账单', status: '确认对账单' },
-  { key: 'reconcile', label: '待仓管对账', status: '待仓管对账' },
-  { key: 'warehouse-reconcile', label: '待仓管对账', status: '待仓管对账' },
-  { key: 'finance-reconcile', label: '待财务对账', status: '待财务对账' },
+  { key: 'warehouse-fee', label: '待仓管确认费用', status: '待仓管确认费用' },
+  { key: 'logistics-fee', label: '待物流确认费用', status: '待物流确认费用' },
+  { key: 'bill', label: '待生成账单', status: '待生成账单' },
+  { key: 'invoice', label: '待物流开票', status: '待物流开票' },
+  { key: 'payment', label: '待发票付款', status: '待发票付款' },
   { key: 'voided', label: '作废', status: '作废' }
 ]
 
@@ -93,6 +99,8 @@ const logisticsOperationStatuses = new Set([
   '待装车离厂',
   '待预约送货',
   '待用户签收',
+  '待物流确认费用',
+  '待物流开票',
   '确认对账单'
 ])
 
@@ -162,7 +170,7 @@ const detailSummary = computed(() => {
     { label: '送货单状态', value: task.status, note: '按当前流程节点显示' },
     { label: '物料进度', value: `${task.progress.done} / ${task.progress.total}`, note: '按扫码结果汇总' },
     { label: '箱数', value: `${task.boxes.total} 箱`, note: `${task.boxes.sealed} 箱已封，${task.boxes.active} 箱进行中` },
-    { label: '费用状态', value: task.feeStatus, note: ['待用户签收', '确认对账单'].includes(task.status) ? '用户签收后由物流公司确认并进入对账' : '对账流程按当前状态推进' }
+    { label: '费用状态', value: task.feeStatus, note: ['待用户签收', '待仓管确认费用'].includes(task.status) ? '用户签收后进入仓管确认费用' : '费用流程按当前状态推进' }
   ]
 
   summary.push({ label: '总运费', value: formatTotalFee(task), note: canShowTotalFee(task) ? '拣配后按物料与箱码计费汇总' : '拣配完成后计算' })
@@ -214,12 +222,17 @@ function taskActions(task) {
   if (task.status === '待打印') return [...actions, '打印', '作废']
   if (task.status === '待拣配') return [...actions, '拣配']
   if (task.status === '待抽检') return [...actions, '抽检']
-  if (task.status === '待封箱贴单') return [...actions, '封箱贴单']
+  if (task.status === '待封配件箱') return [...actions, '封配件箱']
   if (task.status === '待录入DNA') return [...actions, '录入DNA']
   if (task.status === '待交接装车') return [...actions, '交接装车']
   if (task.status === '待装车离厂') return [...actions, '确认离厂']
   if (task.status === '待预约送货') return [...actions, '预约送货']
   if (task.status === '待用户签收' || task.status === '待签收') return [...actions, '用户签收']
+  if (task.status === '待仓管确认费用') return [...actions, '仓管确认费用']
+  if (task.status === '待物流确认费用') return [...actions, '物流确认费用']
+  if (task.status === '待生成账单') return [...actions, '生成账单']
+  if (task.status === '待物流开票') return [...actions, '物流开票']
+  if (task.status === '待发票付款') return [...actions, '发票付款']
   if (task.status === '确认对账单') return [...actions, '确认对账单']
   if (task.status === '待仓管对账') return [...actions, '仓管对账']
   if (task.status === '待财务对账') return [...actions, '财务对账']
@@ -552,7 +565,7 @@ function handleTaskAction(action, task) {
     return
   }
 
-  if (action === '封箱贴单') {
+  if (action === '封配件箱') {
     emit('open-pack', task.no)
     return
   }
@@ -567,7 +580,7 @@ function handleTaskAction(action, task) {
     return
   }
 
-  if (action === '确认对账单') {
+  if (['仓管确认费用', '物流确认费用', '生成账单', '物流开票', '发票付款', '确认对账单', '仓管对账', '财务对账'].includes(action)) {
     emit('open-reconcile', task.no)
     return
   }

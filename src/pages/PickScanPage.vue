@@ -1,5 +1,6 @@
 ﻿<script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import QRCode from 'qrcode'
 import { freightConfigs, materials, packageBoxConfigs, shipmentTasks } from '../data/logistics'
 
 const props = defineProps({
@@ -18,6 +19,12 @@ const accessoryBoxScanCode = ref('PJX-2604030003-01')
 const accessoryMaterialScanCode = ref('65002008')
 const selectedAccessoryBoxCode = ref('PJX-2604030003-01')
 const expandedAccessoryBoxCodes = ref(['PJX-2604030003-01'])
+const packingListOpen = ref(false)
+const packingListBoxCode = ref('')
+const packingListQrSvg = ref('')
+const materialLabelOpen = ref(false)
+const selectedMaterialLabelCode = ref('')
+const materialLabelQrSvg = ref('')
 const latestMessage = ref('当前交货单待拣 5 件，等待扫码枪输入物料编码二维码。')
 const latestMessageType = ref('neutral')
 const exceptionCount = ref(0)
@@ -191,6 +198,23 @@ const canConfirmPick = computed(() => readyForQc.value && !pickConfirmed.value)
 const accessoryBoxCount = computed(() => accessoryBoxes.value.length)
 const selectedAccessoryBox = computed(() => {
   return accessoryBoxes.value.find((box) => box.code === selectedAccessoryBoxCode.value) || accessoryBoxes.value[0]
+})
+const packingListBox = computed(() => {
+  return accessoryBoxes.value.find((box) => box.code === packingListBoxCode.value) || selectedAccessoryBox.value
+})
+const packingListTotalQty = computed(() => {
+  return packingListBox.value?.materials.reduce((sum, item) => sum + item.qty, 0) || 0
+})
+const selectedMaterialLabel = computed(() => {
+  const item = pickRows.value.find((row) => row.code === selectedMaterialLabelCode.value)
+  return {
+    material: item,
+    salesOrderNo: selectedTask.value?.salesOrderNo || '10337400',
+    deliveryNo: selectedTask.value?.deliveryNo || selectedTask.value?.transferNo || '81134529',
+    shipmentNo: shipmentNo.value,
+    city: '成都市',
+    receiver: '邱健'
+  }
 })
 const accessoryRelationRows = computed(() => {
   return accessoryBoxes.value.flatMap((box) =>
@@ -685,14 +709,69 @@ function deleteAccessoryBox(box) {
   addTimeline('配件箱删除', `${box.code} 未关联物料，已由 ${operator} 删除`, 'success')
 }
 
-function printAccessoryBarcode(box = selectedAccessoryBox.value) {
+async function openPackingListPreview(box = selectedAccessoryBox.value) {
   if (!box) return
   selectedAccessoryBoxCode.value = box.code
-  box.printedAt = formatTime()
-  latestMessage.value = `配件箱条形码已送印：${box.code}。`
+  packingListBoxCode.value = box.code
+  packingListQrSvg.value = await QRCode.toString(shipmentNo.value, {
+    type: 'svg',
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 96
+  })
+  packingListOpen.value = true
+}
+
+function closePackingListPreview() {
+  packingListOpen.value = false
+  packingListQrSvg.value = ''
+  document.body.classList.remove('printing-delivery')
+}
+
+function getMaterialLabelQrPayload(item) {
+  return shipmentNo.value
+}
+
+async function openMaterialLabelPreview(item) {
+  if (!item || item.requiresAccessoryBox) return
+  selectedMaterialLabelCode.value = item.code
+  materialLabelQrSvg.value = await QRCode.toString(getMaterialLabelQrPayload(item), {
+    type: 'svg',
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 128
+  })
+  materialLabelOpen.value = true
+}
+
+function closeMaterialLabelPreview() {
+  materialLabelOpen.value = false
+  materialLabelQrSvg.value = ''
+  document.body.classList.remove('printing-delivery')
+}
+
+function printMaterialLabel() {
+  if (!selectedMaterialLabel.value.material) return
+  latestMessage.value = `普通物料贴单已送印：${selectedMaterialLabel.value.material.code}。`
   latestMessageType.value = 'success'
-  addTimeline('配件箱条形码打印', `${box.code} 已打印，操作员 ${operator}`)
+  addTimeline('普通物料贴单打印', `${selectedMaterialLabel.value.material.code} 已打印，操作员 ${operator}`)
+  document.body.classList.add('printing-delivery')
   nextTick(() => window.print())
+}
+
+function printAccessoryBarcode() {
+  const box = packingListBox.value
+  if (!box) return
+  box.printedAt = formatTime()
+  latestMessage.value = `装箱清单已送印：${box.code}。`
+  latestMessageType.value = 'success'
+  addTimeline('装箱清单打印', `${box.code} 已打印，操作员 ${operator}`)
+  document.body.classList.add('printing-delivery')
+  nextTick(() => window.print())
+}
+
+function handleAfterPrint() {
+  document.body.classList.remove('printing-delivery')
 }
 
 function submitScan() {
@@ -733,6 +812,12 @@ function submitScan() {
 onMounted(() => {
   scanInput.value?.focus()
   scanInput.value?.select()
+  window.addEventListener('afterprint', handleAfterPrint)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('afterprint', handleAfterPrint)
+  document.body.classList.remove('printing-delivery')
 })
 
 watch(
@@ -865,8 +950,8 @@ defineExpose({
                     </span>
                   </button>
                   <div class="accessory-box-row-actions">
-                    <button class="btn accessory-print-btn" type="button" @click="printAccessoryBarcode(box)">
-                      {{ box.printedAt ? '已打印' : '打印条形码' }}
+                    <button class="btn accessory-print-btn" type="button" @click="openPackingListPreview(box)">
+                      {{ box.printedAt ? '已打印' : '打印装箱清单' }}
                     </button>
                     <button class="btn primary" type="button" @click="selectAccessoryBoxForMaterial(box)">关联物料</button>
                     <button v-if="!box.materials.length" class="btn danger" type="button" @click="deleteAccessoryBox(box)">删除</button>
@@ -947,6 +1032,7 @@ defineExpose({
                   <th>配件箱</th>
                   <th>最近扫码</th>
                   <th>状态</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -969,6 +1055,17 @@ defineExpose({
                   <td :class="item.requiresAccessoryBox && !getAccessoryBoxCode(item) ? 'warn' : 'ok'">{{ getAccessoryDisplay(item) }}</td>
                   <td>{{ item.lastScan || '-' }}</td>
                   <td :class="rowTone(item)">{{ rowStatus(item) }}</td>
+                  <td>
+                    <button
+                      v-if="!item.requiresAccessoryBox"
+                      class="btn success mini"
+                      type="button"
+                      @click="openMaterialLabelPreview(item)"
+                    >
+                      打印贴单
+                    </button>
+                    <span v-else class="muted-cell">-</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1011,5 +1108,111 @@ defineExpose({
         </section>
       </aside>
     </section>
+
+    <div v-if="materialLabelOpen" class="print-dialog-backdrop" @click.self="closeMaterialLabelPreview">
+      <section class="print-dialog material-label-dialog" role="dialog" aria-modal="true" aria-label="普通物料贴单打印预览">
+        <div class="print-dialog-toolbar">
+          <strong>普通物料贴单打印预览</strong>
+          <div class="print-dialog-actions">
+            <button class="btn primary" type="button" @click="printMaterialLabel">打印</button>
+            <button class="btn" type="button" @click="closeMaterialLabelPreview">关闭</button>
+          </div>
+        </div>
+        <div class="print-preview-scroll">
+          <div class="delivery-print-page material-label-sheet">
+            <table class="material-label-table">
+              <thead>
+                <tr>
+                  <th colspan="2">大件/配件出厂信息</th>
+                  <th class="material-label-head-qr">
+                    <div class="material-label-qr" v-html="materialLabelQrSvg"></div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>送货单</td>
+                  <td>{{ selectedMaterialLabel.shipmentNo }}</td>
+                </tr>
+                <tr>
+                  <td>销售单号/调拨单号</td>
+                  <td>{{ selectedMaterialLabel.salesOrderNo }}</td>
+                </tr>
+                <tr>
+                  <td>交货单号</td>
+                  <td>{{ selectedMaterialLabel.deliveryNo }}</td>
+                </tr>
+                <tr>
+                  <td>目的城市</td>
+                  <td>{{ selectedMaterialLabel.city }}</td>
+                </tr>
+                <tr>
+                  <td>收件人</td>
+                  <td>{{ selectedMaterialLabel.receiver }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="packingListOpen" class="print-dialog-backdrop" @click.self="closePackingListPreview">
+      <section class="print-dialog packing-list-dialog" role="dialog" aria-modal="true" aria-label="装箱清单打印预览">
+        <div class="print-dialog-toolbar">
+          <strong>装箱清单打印预览</strong>
+          <div class="print-dialog-actions">
+            <button class="btn primary" type="button" @click="printAccessoryBarcode">打印</button>
+            <button class="btn" type="button" @click="closePackingListPreview">关闭</button>
+          </div>
+        </div>
+        <div class="print-preview-scroll">
+          <div class="delivery-print-page packing-list-sheet">
+            <table class="packing-excel-table">
+              <thead>
+                <tr>
+                  <th colspan="4" class="packing-company">深圳市捷顺科技实业股份有限公司</th>
+                  <th class="packing-head-qr" rowspan="2">
+                    <div class="packing-qr" v-html="packingListQrSvg"></div>
+                  </th>
+                </tr>
+                <tr>
+                  <th colspan="4" class="packing-doc-title">装箱清单</th>
+                </tr>
+                <tr>
+                  <th class="packing-meta">送货单号：{{ shipmentNo }}</th>
+                  <th class="packing-meta">销售单号：{{ selectedTask?.salesOrderNo || '10337400' }}</th>
+                  <th class="packing-meta">交货单号：{{ selectedTask?.deliveryNo || '81113003' }}</th>
+                  <th colspan="2" class="packing-meta">收货单位：{{ customer }}</th>
+                </tr>
+                <tr>
+                  <th class="packing-index-col">序号</th>
+                  <th class="packing-code-col">物料号</th>
+                  <th class="packing-name-col">物料名称</th>
+                  <th class="packing-unit-col">单位</th>
+                  <th class="packing-qty-col">数量</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in packingListBox?.materials || []" :key="`${packingListBox?.code}-${item.code}`">
+                  <td>{{ index + 1 }}</td>
+                  <td>{{ item.code }}</td>
+                  <td class="print-text-left">{{ item.name }}</td>
+                  <td>个</td>
+                  <td>{{ item.qty }}</td>
+                </tr>
+                <tr v-if="!packingListBox?.materials.length">
+                  <td colspan="5">暂无配件物料</td>
+                </tr>
+                <tr class="packing-total-row">
+                  <td colspan="4">合计</td>
+                  <td>{{ packingListTotalQty }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
   </section>
 </template>

@@ -5,7 +5,7 @@ import { shipmentTasks } from '../data/logistics'
 const emit = defineEmits(['open-workbench', 'open-pick', 'open-qc', 'open-pack'])
 
 const mobilePendingTotal = computed(() =>
-  shipmentTasks.filter((task) => ['待拣配', '待抽检', '待封箱贴单'].includes(task.status)).length
+  shipmentTasks.filter((task) => ['待拣配', '待抽检', '待封配件箱'].includes(task.status)).length
 )
 
 const cards = computed(() => {
@@ -55,10 +55,10 @@ const cards = computed(() => {
       title: '封箱贴单',
       subtitle: '扫描箱码、物料码和调拨单码，完成装箱绑定与贴单。',
       actionLabel: '进入封箱',
-      statLabel: '待封箱贴单',
-      statValue: `${shipmentTasks.filter((task) => task.status === '待封箱贴单').length} 单`,
-      helper: `默认打开 ${findTaskNo('待封箱贴单') || '待封箱任务'}`,
-      open: () => emit('open-pack', findTaskNo('待封箱贴单'))
+      statLabel: '待封配件箱',
+      statValue: `${shipmentTasks.filter((task) => task.status === '待封配件箱').length} 单`,
+      helper: `默认打开 ${findTaskNo('待封配件箱') || '待封箱任务'}`,
+      open: () => emit('open-pack', findTaskNo('待封配件箱'))
     }
   ]
 })

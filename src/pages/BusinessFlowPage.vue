@@ -6,15 +6,16 @@ const mainFlow = [
   { no: '04', title: 'DNA 录入', owner: 'DNA 录入员', note: '大件产品：扫描并录入DNA编号，绑定交货单，同步完成编号校验。' },
   { no: '05', title: '扫码拣配', owner: '发货员', note: '按拣配清单拣货：大件物料直接扫码；配件物料先扫配件箱，再逐件扫码入箱。系统自动根据目的地、重量及体积核算运费。' },
   { no: '06', title: '扫码抽检', owner: '质量员', note: '抽检物料，核对数量并确认质量合格。' },
-  { no: '07', title: '封配件箱', owner: '封箱员', note: '打印装箱清单，贴于配件箱外侧，完成后封箱' },
+  { no: '07', title: '封配件箱', owner: '封箱员', note: '确认物料数量无误、质量合格后，封箱。' },
   { no: '08', title: '交接装车', owner: '物控/装车岗', note: '完成物流交接、装车确认和离厂登记' },
   { no: '09', title: '确认离厂', owner: '物流公司', note: '物流公司输入物流单号，并确认离厂' },
-  { no: '10', title: '预约送货', owner: '物流公司', note: '跟用户预约送货，并短信发送签收码' },
-  { no: '11', title: '用户签收', owner: '物流公司', note: '用户提供签收码，物流公司填写后确认用户签收，可填写备注' },
-  { no: '12', title: '确认对账单', owner: '物流公司', note: '物流公司确认账单是否有误。' },
-  { no: '13', title: '仓管对账', owner: '仓管财务', note: '仓管财务核对对账单、费用项和异常说明' },
-  { no: '14', title: '财务对账', owner: '总部财务', note: '总部财务复核对账单、费用项和异常说明' },
-  { no: '15', title: '报销', owner: '仓管财务', note: '自动发起报销，完成费用闭环' }
+  { no: '10', title: '预约送货', owner: '物流公司', note: '预约送货后，系统自动发送签收码。' },
+  { no: '11', title: '用户签收', owner: '物流公司', note: '客户完成签收，送货单进入待仓管确认费用状态。' },
+  { no: '12', title: '仓管确认费用', owner: '仓库财务', note: '核对运费、送货费、超长费、卸货费、打木架费、入仓费、搬运费等费用项，确认无误。' },
+  { no: '13', title: '物流确认费用', owner: '物流公司', note: '物流公司限时确认费用，逾期系统默认确认；有异议时提交异议并回滚至仓管确认费用。' },
+  { no: '14', title: '生成账单', owner: '系统 / 仓库财务', note: '已确认的送货单，每月1号凌晨自动生成上月月度对账单，也支持手动生成。' },
+  { no: '15', title: '物流开票', owner: '物流公司', note: '物流公司上传发票。' },
+  { no: '16', title: '发票付款', owner: '系统 / 财务', note: '付款流程由系统自动触发，财务人员亦可手动发起。' }
 ]
 
 const laneGroups = [
@@ -24,11 +25,11 @@ const laneGroups = [
   },
   {
     title: '物流协同',
-    items: ['交接装车', '录入物流单号', '确认离厂', '运输中', '预约送货', '用户签收', '确认对账单']
+    items: ['交接装车', '录入物流单号', '确认离厂', '运输中', '预约送货', '用户签收']
   },
   {
     title: '费用闭环',
-    items: ['仓管对账', '财务对账', '改价确认', '发起报销', '已报销']
+    items: ['仓管确认费用', '物流确认费用', '生成账单', '物流开票', '发票付款']
   }
 ]
 
@@ -40,10 +41,12 @@ const controls = [
   '抽检不通过退回拣配或进入异常处理',
   '物流公司必须填写物流单号后才能确认离厂',
   '预约送货后由系统短信发送签收码',
-  '用户签收后由物流公司确认对账单是否有误',
-  '仓管财务核对对账单后才能进入总部财务核对或改价确认',
-  '总部财务核对通过后才能进入报销闭环',
-  '对账有改价时必须多方确认后才能报销'
+  '用户签收后送货单进入待仓管确认费用状态',
+  '仓库财务确认运费、送货费、超长费、卸货费、打木架费、入仓费、搬运费等费用项',
+  '物流公司须限时确认费用，逾期系统默认确认',
+  '物流费用有异议时回滚至仓管确认费用，由仓管回复异议记录后重新提交',
+  '每月1号凌晨系统自动生成上月月度对账单，也支持手动生成',
+  '物流公司上传发票后才能发起付款流程审批'
 ]
 
 const exceptions = [
@@ -51,7 +54,8 @@ const exceptions = [
   { from: '封配件箱异常', to: '撤销箱码/重扫', tone: 'red' },
   { from: '预约失败', to: '重新预约送货', tone: 'amber' },
   { from: '作废单据', to: '停止发货，保留费用处理', tone: 'red' },
-  { from: '对账改价', to: '物流、工厂、总部财务确认', tone: 'blue' }
+  { from: '费用异议', to: '回滚仓管确认费用，回复后重提', tone: 'blue' },
+  { from: '物流逾期未确认', to: '系统默认确认费用', tone: 'amber' }
 ]
 </script>
 
@@ -60,7 +64,7 @@ const exceptions = [
     <section class="panel business-flow-hero">
       <div>
         <h1>系统业务流程图</h1>
-        <p class="subline">覆盖发货资料、扫码作业、物流签收、对账核价和报销闭环。</p>
+        <p class="subline">覆盖发货资料、扫码作业、物流签收、费用确认、账单开票和付款闭环。</p>
       </div>
       <div class="flow-legend" aria-label="图例">
         <span><i class="legend-dot done"></i>主流程</span>
@@ -94,7 +98,18 @@ const exceptions = [
             <p>{{ step.note }}</p>
           </template>
         </div>
-        <span v-if="index < mainFlow.length - 1" class="process-arrow" aria-hidden="true">→</span>
+        <span
+          v-if="index < mainFlow.length - 1"
+          class="process-arrow"
+          :class="{ reversible: step.no === '12' }"
+          aria-hidden="true"
+        >
+          <template v-if="step.no === '12'">
+            <span class="forward-arrow">→</span>
+            <span class="rollback-arrow">←</span>
+          </template>
+          <template v-else>→</template>
+        </span>
       </div>
     </section>
 

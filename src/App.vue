@@ -43,8 +43,7 @@ const navGroups = [
   {
     title: '作业中心',
     items: [
-      { key: 'workbench', label: '发货作业台' },
-      { key: 'accessoryBoxes', label: '配件箱管理' }
+      { key: 'workbench', label: '发货作业台' }
     ]
   },
   {
@@ -57,13 +56,19 @@ const navGroups = [
   {
     title: '物流费用',
     items: [
-      { key: 'reconcile', label: '对账单' },
+      { key: 'reconcile', label: '对账单' }
+    ]
+  },
+  {
+    title: '配置管理',
+    items: [
+      { key: 'accessoryBoxes', label: '配件箱管理' },
       { key: 'freightConfig', label: '物流配置' }
     ]
   }
 ]
 
-const activePage = ref('workbench')
+const activePage = ref('businessFlow')
 const pageComponent = ref(null)
 const workbenchDetailActive = ref(false)
 const activeWorkbenchTaskNo = ref('')

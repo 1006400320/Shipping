@@ -32,6 +32,7 @@ const generateForm = reactive({
 })
 const alertOpen = ref(false)
 const alertMessage = ref('')
+const pendingDeleteRow = ref(null)
 const formError = ref('')
 const generateError = ref('')
 const storageError = ref('')
@@ -311,8 +312,19 @@ function deleteRow(row) {
     showAlert('只能删除未使用状态的配件箱。')
     return
   }
+  pendingDeleteRow.value = row
+}
+
+function closeDeleteConfirm() {
+  pendingDeleteRow.value = null
+}
+
+function confirmDeleteRow() {
+  const row = pendingDeleteRow.value
+  if (!row) return
   rows.value = rows.value.filter((item) => item.code !== row.code)
   selectedCodes.value = selectedCodes.value.filter((code) => code !== row.code)
+  pendingDeleteRow.value = null
   if (currentPage.value > totalPages.value) gotoPage(totalPages.value)
 }
 
@@ -659,6 +671,22 @@ watch(totalPages, () => {
         <div class="alert-dialog-body">{{ alertMessage }}</div>
         <div class="org-dialog-foot">
           <button class="btn primary" type="button" @click="closeAlert">知道了</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="pendingDeleteRow" class="modal-backdrop" @click.self="closeDeleteConfirm">
+      <section class="org-dialog alert-dialog" role="alertdialog" aria-modal="true" aria-label="删除确认">
+        <div class="org-dialog-head">
+          <strong>删除确认</strong>
+          <button class="dialog-close" type="button" aria-label="关闭" @click="closeDeleteConfirm">×</button>
+        </div>
+        <div class="alert-dialog-body">
+          确认删除配件箱 {{ pendingDeleteRow.code }}？删除后不可恢复。
+        </div>
+        <div class="org-dialog-foot">
+          <button class="btn" type="button" @click="closeDeleteConfirm">取消</button>
+          <button class="btn danger" type="button" @click="confirmDeleteRow">确认删除</button>
         </div>
       </section>
     </div>

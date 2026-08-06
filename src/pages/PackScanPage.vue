@@ -3,6 +3,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { boxes, materials } from '../data/logistics'
 
 const packingListOpen = ref(false)
+const scanInput = ref(null)
+const scanCode = ref('BOX-20260518-003')
+const scanMessage = ref('请扫描配件箱码确认封箱。')
+const scanMessageType = ref('neutral')
+const confirmedBoxes = ref(new Set(['BOX-001', 'BOX-002']))
+const operationRecords = ref([
+  { time: '10:41:55', action: '确认封箱', boxNo: 'BOX-002', operator: '李明', result: '成功' },
+  { time: '10:38:21', action: '确认封箱', boxNo: 'BOX-001', operator: '李明', result: '成功' }
+])
 
 function toShortBoxNo(boxNo) {
   const match = boxNo.match(/^BOX-\d{8}-(\d+)$/)
@@ -47,13 +56,31 @@ const boxRows = computed(() =>
       planned,
       packed,
       expanded: expandedBoxes.value.has(box.no),
-      statusTone: packed >= planned ? 'ok' : 'warn',
-      status: packed >= planned ? '已打印封箱' : '待打印封箱',
+      statusTone: confirmedBoxes.value.has(box.no) ? 'ok' : 'warn',
+      status: confirmedBoxes.value.has(box.no) ? '已确认封箱' : '待确认封箱',
       printTime: items.reduce((latest, item) => (item.lastScan > latest ? item.lastScan : latest), '-'),
       printer: box.operator || '-'
     }
   })
 )
+
+function formatTime(date = new Date()) {
+  return date.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+function normalizeBoxCode(rawCode) {
+  return toShortBoxNo(rawCode.trim().toUpperCase())
+}
+
+function addOperationRecord(box, result, note = '') {
+  operationRecords.value.unshift({
+    time: formatTime(),
+    action: '确认封箱',
+    boxNo: box?.no || '-',
+    operator: box?.printer || '-',
+    result: note ? `${result}：${note}` : result
+  })
+}
 
 function toggleBox(boxNo) {
   const next = new Set(expandedBoxes.value)
@@ -67,6 +94,43 @@ function toggleBox(boxNo) {
 
 function openPackingList() {
   packingListOpen.value = true
+}
+
+function confirmBox(box) {
+  if (!box) return
+  if (box.packed < box.planned) {
+    scanMessage.value = `${box.no} 未装满，不能确认封箱。`
+    scanMessageType.value = 'danger'
+    addOperationRecord(box, '失败', '未装满')
+    return
+  }
+
+  confirmedBoxes.value = new Set([...confirmedBoxes.value, box.no])
+  scanMessage.value = `${box.no} 已确认封箱。`
+  scanMessageType.value = 'success'
+  addOperationRecord(box, '成功')
+}
+
+function submitScanConfirm() {
+  const boxNo = normalizeBoxCode(scanCode.value)
+  if (!boxNo) {
+    scanMessage.value = '请扫描配件箱码。'
+    scanMessageType.value = 'danger'
+    nextTick(() => scanInput.value?.focus())
+    return
+  }
+
+  const box = boxRows.value.find((item) => item.no === boxNo)
+  if (!box) {
+    scanMessage.value = `${boxNo} 不属于当前配件箱明细。`
+    scanMessageType.value = 'danger'
+    addOperationRecord({ no: boxNo, printer: '-' }, '失败', '箱码不存在')
+    nextTick(() => scanInput.value?.select())
+    return
+  }
+
+  confirmBox(box)
+  nextTick(() => scanInput.value?.select())
 }
 
 function closePackingList() {
@@ -101,6 +165,23 @@ onBeforeUnmount(() => {
           <div class="section-head">
             <div class="section-title">配件箱明细</div>
           </div>
+          <form class="pack-confirm-bar" @submit.prevent="submitScanConfirm">
+            <label class="filter-field pack-confirm-field">
+              <span>扫码确认封箱</span>
+              <input
+                ref="scanInput"
+                v-model="scanCode"
+                type="search"
+                autocomplete="off"
+                inputmode="text"
+                placeholder="扫描配件箱码"
+                aria-label="扫码确认封箱"
+                @focus="scanInput?.select()"
+              />
+            </label>
+            <button class="btn primary" type="submit">确认封箱</button>
+            <div class="scan-alert pack-confirm-message" :class="scanMessageType">{{ scanMessage }}</div>
+          </form>
           <div class="table-wrap">
             <table class="pack-table">
               <thead>
@@ -129,7 +210,7 @@ onBeforeUnmount(() => {
                     <td>{{ box.printer }}</td>
                     <td :class="box.statusTone">{{ box.status }}</td>
                     <td>
-                      <button class="table-action-btn" type="button" @click.stop="openPackingList">打印封箱</button>
+                      <button class="table-action-btn" type="button" @click.stop="confirmBox(box)">确认封箱</button>
                     </td>
                   </tr>
                   <tr v-if="box.expanded" class="box-detail-row">
@@ -155,6 +236,31 @@ onBeforeUnmount(() => {
                     </td>
                   </tr>
                 </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="pack-operation-records">
+            <div class="section-head compact-head">
+              <div class="section-title">操作记录</div>
+            </div>
+            <table class="operation-record-table">
+              <thead>
+                <tr>
+                  <th>操作时间</th>
+                  <th>操作</th>
+                  <th>配件箱</th>
+                  <th>操作人</th>
+                  <th>结果</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="record in operationRecords" :key="`${record.time}-${record.boxNo}-${record.result}`">
+                  <td>{{ record.time }}</td>
+                  <td>{{ record.action }}</td>
+                  <td>{{ record.boxNo }}</td>
+                  <td>{{ record.operator }}</td>
+                  <td>{{ record.result }}</td>
+                </tr>
               </tbody>
             </table>
           </div>

@@ -47,7 +47,7 @@ const pageCopy = computed(() =>
         uploadNote: '签收现场照片',
         uploadHint: '用于记录交付现场、签收人确认或异常情况',
         submitLabel: '确认签收',
-        success: '已确认用户签收，下一步由物流公司上传对账单。',
+        success: '已确认用户签收，送货单进入待仓管确认费用，下一步由仓管确认费用。',
         remarkPlaceholder: '填写签收说明、异常情况、客户反馈或后续对账备注'
       }
     : isTransportMode.value
@@ -72,8 +72,8 @@ const pageCopy = computed(() =>
         description: '物流公司与收货人确认送货时间，登记预约结果并发送签收码。',
         primaryCardTitle: '送货预约',
         primaryCardNote: '物流人员预约后提交',
-        operatorLabel: '预约联系人',
-        phoneLabel: '联系人手机号',
+        operatorLabel: '预约收货人',
+        phoneLabel: '收货人手机号',
         checkTitle: '预约核对',
         materialTitle: '预约送货物料',
         uploadNote: '预约凭证或沟通记录',
@@ -105,8 +105,7 @@ const checks = computed(() =>
     : isAppointmentMode.value
     ? [
         { key: 'contact', label: '已与收货人确认送货时间' },
-        { key: 'phone', label: '联系人手机号已核对无误' },
-        { key: 'code', label: '签收码已发送或待系统发送' }
+        { key: 'phone', label: '收货人手机号已核对无误' }
       ]
     : isTransportMode.value
     ? [
@@ -126,13 +125,16 @@ const checks = computed(() =>
 const checkedKeys = ref(new Set(['materials', 'carrier', 'boxes', 'docs', 'vehicle']))
 const checkedCount = computed(() => checks.value.filter((item) => checkedKeys.value.has(item.key)).length)
 const normalizedWaybillNos = computed(() => waybillNos.value.map((item) => item.trim()).filter(Boolean))
+const hasBaseRequiredFields = computed(() => {
+  return handoverTime.value && (isSignMode.value || warehouseKeeper.value.trim()) && logisticsStaff.value.trim() && staffPhone.value.trim()
+})
 const canConfirm = computed(() => {
-  if (isSignMode.value) return logisticsStaff.value && signCode.value.trim()
-  if (isAppointmentMode.value) return checkedCount.value === checks.value.length && logisticsStaff.value && staffPhone.value
+  if (isSignMode.value) return handoverTime.value && logisticsStaff.value.trim() && staffPhone.value.trim() && signCode.value.trim()
+  if (isAppointmentMode.value) return checkedCount.value === checks.value.length && hasBaseRequiredFields.value
   return (
     checkedCount.value === checks.value.length &&
-    logisticsStaff.value &&
-    vehicleNo.value &&
+    hasBaseRequiredFields.value &&
+    vehicleNo.value.trim() &&
     (!isTransportMode.value || normalizedWaybillNos.value.length > 0)
   )
 })
@@ -230,24 +232,24 @@ function confirmAction() {
           </div>
           <div class="handover-form">
             <label>
-              <span>{{ isSignMode ? '签收时间' : isTransportMode ? '离厂时间' : '交接时间' }}</span>
-              <input v-model="handoverTime" class="field" type="datetime-local" :readonly="isSignMode" />
+              <span>{{ isSignMode ? '签收时间' : isTransportMode ? '离厂时间' : isAppointmentMode ? '预约送货时间' : '交接时间' }}</span>
+              <input v-model="handoverTime" class="field" type="datetime-local" :readonly="isSignMode" required />
             </label>
             <label v-if="!isSignMode">
-              <span>仓管员</span>
-              <input v-model="warehouseKeeper" class="field" type="text" />
+              <span>{{ isAppointmentMode ? '物流人员' : '仓管员' }}</span>
+              <input v-model="warehouseKeeper" class="field" type="text" required />
             </label>
             <label>
               <span>{{ pageCopy.operatorLabel }}</span>
-              <input v-model="logisticsStaff" class="field" type="text" :readonly="isSignMode" />
+              <input v-model="logisticsStaff" class="field" type="text" :readonly="isSignMode" required />
             </label>
             <label>
               <span>{{ pageCopy.phoneLabel }}</span>
-              <input v-model="staffPhone" class="field" type="tel" :readonly="isSignMode" />
+              <input v-model="staffPhone" class="field" type="tel" :readonly="isSignMode" required />
             </label>
-            <label v-if="!isSignMode" class="wide">
+            <label v-if="!isSignMode && !isAppointmentMode" class="wide">
               <span>车牌号</span>
-              <input v-model="vehicleNo" class="field plate-input" type="text" />
+              <input v-model="vehicleNo" class="field plate-input" type="text" required />
             </label>
             <div v-if="isTransportMode" class="waybill-list wide">
               <div class="waybill-list-head">
@@ -261,7 +263,7 @@ function confirmAction() {
             </div>
             <label v-if="isSignMode" class="wide">
               <span>签收码</span>
-              <input v-model="signCode" class="field plate-input" type="text" placeholder="请输入签收人提供的签收码" />
+              <input v-model="signCode" class="field plate-input" type="text" placeholder="请输入签收人提供的签收码" required />
             </label>
             <label class="wide">
               <span>备注</span>
@@ -319,7 +321,6 @@ function confirmAction() {
                 <th>物料编码</th>
                 <th>名称</th>
                 <th>箱码</th>
-                <th>状态</th>
               </tr>
             </thead>
             <tbody>
@@ -327,7 +328,6 @@ function confirmAction() {
                 <td>{{ item.code }}</td>
                 <td>{{ item.name }}</td>
                 <td>{{ item.box }}</td>
-                <td>{{ item.packed >= item.planned ? '完成' : '待处理' }}</td>
               </tr>
             </tbody>
           </table>

@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { computed, ref, watch } from 'vue'
-import { feeItems, shipmentTasks } from '../data/logistics'
+import { materials, shipmentTasks } from '../data/logistics'
 
 const props = defineProps({
   taskNo: {
@@ -156,14 +156,89 @@ const selectedTemplate = ref('cbf')
 const parsedStatement = ref(null)
 const parseError = ref('')
 const reviewStage = ref('待物流上传')
+const freightTooltip = ref({
+  visible: false,
+  text: '',
+  x: 0,
+  y: 0,
+  placement: 'top'
+})
+const freightDetailOpen = ref(false)
+const feeReviewItems = ref([
+  { name: '运费', amount: 1680, status: '待确认' },
+  { name: '送货费', amount: 260, status: '待确认' },
+  { name: '超长费', amount: 80, status: '待确认' },
+  { name: '卸货费', amount: 120, status: '待确认' },
+  { name: '打木架费', amount: 0, status: '无费用' },
+  { name: '入仓费', amount: 0, status: '无费用' },
+  { name: '搬运费', amount: 60, status: '待确认' }
+])
+const feeAdjustmentRows = ref([
+  { id: 1, itemName: '运费', amount: '', reason: '', attachmentName: '' }
+])
+const nextFeeAdjustmentRowId = ref(2)
+const feeAdjustmentHistory = ref([
+  {
+    time: '2026-05-28 16:20',
+    reviewType: '仓管确认费用',
+    itemName: '送货费',
+    before: 220,
+    after: 260,
+    operator: '李敏',
+    reason: '按客户指定送货点补充送货费',
+    attachmentName: '送货点变更确认.png'
+  }
+])
 
 const selectedListRow = computed(() => listRows.value.find((item) => item.id === selectedId.value))
 const isDetail = computed(() => Boolean(selectedId.value))
 const isCreatingStatement = computed(() => selectedId.value === 'NEW')
 const activeTask = computed(() => shipmentTasks.find((task) => task.no === props.taskNo))
+const isTaskFlow = computed(() => Boolean(activeTask.value))
 const isConfirmStatementTask = computed(() => activeTask.value?.status === '确认对账单')
+const showFeeAdjustment = computed(() => !['待生成账单', '待物流开票', '待发票付款'].includes(activeTask.value?.status))
+const showGenerateBillButton = computed(() => isTaskFlow.value && reviewStage.value === '待生成账单')
+const taskFlowTitle = computed(() => {
+  const status = activeTask.value?.status
+  if (status === '待仓管确认费用') return '仓管确认费用'
+  if (status === '待物流确认费用') return '物流确认费用'
+  if (status === '待生成账单') return '生成账单'
+  if (status === '待物流开票') return '物流开票'
+  if (status === '待发票付款') return '发票付款'
+  if (isConfirmStatementTask.value) return '确认对账单'
+  return isCreatingStatement.value ? '新增对账单' : '对账单详情'
+})
+const taskFlowSubtitle = computed(() => {
+  const status = activeTask.value?.status
+  if (status === '待仓管确认费用') return '签收后核对运费、送货费、超长费、卸货费、打木架费、入仓费和搬运费，可调整并记录历史。'
+  if (status === '待物流确认费用') return '物流公司限时确认费用；有异议时回滚至仓管确认费用。'
+  if (status === '待生成账单') return '已确认费用进入账单生成，可手动生成或等待月初自动生成。'
+  if (status === '待物流开票') return '物流公司根据账单上传发票，发票齐套后进入付款。'
+  if (status === '待发票付款') return '发票付款流程由系统或财务发起并跟踪处理结果。'
+  return '物流公司确认对账单明细后提交，再由仓管财务和总部财务依次核对。'
+})
 const canUpload = computed(() => templateDownloaded.value && Boolean(statementFileName.value))
 const parsedTotal = computed(() => parsedStatement.value?.totals?.totalFee || 0)
+const feeReviewTotal = computed(() => feeReviewItems.value.reduce((total, item) => total + toAmount(item.amount), 0))
+const freightMaterialRows = computed(() =>
+  materials.map((item, index) => {
+    const weight = [18, 12, 5, 3, 2, 1.5, 32, 9, 4][index] || 2
+    const volume = ((item.lengthMm || 400) * (item.widthMm || 180) * (item.heightMm || 90)) / 1000000000
+    const freight = item.large ? weight * 0.33 : volume * 105
+    return {
+      ...item,
+      weight,
+      volume,
+      freight
+    }
+  })
+)
+const freightMaterialTotal = computed(() => freightMaterialRows.value.reduce((total, item) => total + item.freight, 0))
+const freightDetailTooltip = computed(() => {
+  const volumeUnitPrice = 105
+  const weightUnitPrice = 0.33
+  return `普通物料按体积计费，大件物料按重量计费。\n普通物料运费 = 体积 × 体积计费单价 ${formatMoney(volumeUnitPrice)} 元/m³。\n大件物料运费 = 重量 × 重量计费单价 ${formatMoney(weightUnitPrice)} 元/kg。`
+})
 const deliveryNoCount = computed(() => {
   if (!parsedStatement.value) return 0
   return new Set(parsedStatement.value.rows.map((row) => row.deliveryNo).filter(Boolean)).size
@@ -179,6 +254,104 @@ function formatMoney(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })
+}
+
+function positionFreightTooltip(event) {
+  const target = event.currentTarget
+  const rect = target.getBoundingClientRect()
+  const tooltipText = target.dataset.tooltip || ''
+  const lineCount = tooltipText.split('\n').reduce((count, line) => count + Math.max(1, Math.ceil(line.length / 26)), 0)
+  const estimatedHeight = Math.min(360, lineCount * 22 + 28)
+  const shouldShowBelow = rect.top < estimatedHeight + 16
+
+  freightTooltip.value = {
+    visible: true,
+    text: tooltipText,
+    x: rect.left + rect.width / 2,
+    y: shouldShowBelow ? rect.bottom + 8 : rect.top - 8,
+    placement: shouldShowBelow ? 'bottom' : 'top'
+  }
+}
+
+function hideFreightTooltip() {
+  freightTooltip.value.visible = false
+}
+
+function addFeeAdjustmentRow() {
+  feeAdjustmentRows.value.push({
+    id: nextFeeAdjustmentRowId.value,
+    itemName: feeReviewItems.value[0]?.name || '',
+    amount: '',
+    reason: '',
+    attachmentName: ''
+  })
+  nextFeeAdjustmentRowId.value += 1
+}
+
+function removeFeeAdjustmentRow(rowId) {
+  if (feeAdjustmentRows.value.length === 1) return
+  feeAdjustmentRows.value = feeAdjustmentRows.value.filter((row) => row.id !== rowId)
+}
+
+function submitFeeAdjustments() {
+  const hasInvalidRow = feeAdjustmentRows.value.some((row) => {
+    const amount = toAmount(row.amount)
+    return !row.itemName || !Number.isFinite(amount) || amount < 0 || !row.reason.trim()
+  })
+  if (hasInvalidRow) {
+    window.alert('请完整填写调整费用项、调整后金额和调整原因。')
+    return
+  }
+
+  const validRows = feeAdjustmentRows.value
+    .map((row) => ({
+      ...row,
+      amount: toAmount(row.amount),
+      reason: row.reason.trim()
+    }))
+    .filter((row) => row.itemName && Number.isFinite(row.amount) && row.amount >= 0 && row.reason)
+
+  if (!validRows.length) return
+
+  validRows.forEach((row, index) => {
+    const target = feeReviewItems.value.find((item) => item.name === row.itemName)
+    if (!target) return
+
+    const before = toAmount(target.amount)
+    target.amount = row.amount
+    target.status = row.amount > 0 ? '已调整待确认' : '无费用'
+    feeAdjustmentHistory.value.unshift({
+      time: `2026-05-28 16:${String(35 + index).padStart(2, '0')}`,
+      reviewType: '仓管确认费用',
+      itemName: target.name,
+      before,
+      after: row.amount,
+      operator: '李敏',
+      reason: row.reason,
+      attachmentName: row.attachmentName || '无'
+    })
+  })
+
+  feeAdjustmentRows.value = [{ id: nextFeeAdjustmentRowId.value, itemName: feeReviewItems.value[0]?.name || '', amount: '', reason: '', attachmentName: '' }]
+  nextFeeAdjustmentRowId.value += 1
+}
+
+function handleAdjustmentAttachmentChange(row, event) {
+  const [file] = event.target.files || []
+  row.attachmentName = file?.name || ''
+}
+
+function viewAttachment(name) {
+  if (!name || name === '无') return
+  window.alert(`查看附件：${name}`)
+}
+
+function downloadAttachment(name) {
+  if (!name || name === '无') return
+  const link = document.createElement('a')
+  link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(`附件下载占位：${name}`)}`
+  link.download = name
+  link.click()
 }
 
 function buildParsedStatement(template, rows, confidence = template.confidence) {
@@ -263,6 +436,94 @@ function downloadTemplate() {
   templateDownloaded.value = true
 }
 
+function escapeExcelValue(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function getExcelCellType(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? 'Number' : 'String'
+}
+
+function makeExcelCell(value, styleId = '') {
+  const type = getExcelCellType(value)
+  const style = styleId ? ` ss:StyleID="${styleId}"` : ''
+  return `<Cell${style}><Data ss:Type="${type}">${escapeExcelValue(value)}</Data></Cell>`
+}
+
+function makeExcelWorksheet(name, headers, rows) {
+  const headerRow = `<Row>${headers.map((header) => makeExcelCell(header, 'Header')).join('')}</Row>`
+  const bodyRows = rows
+    .map((row) => `<Row>${row.map((cell) => makeExcelCell(cell)).join('')}</Row>`)
+    .join('')
+
+  return `
+    <Worksheet ss:Name="${escapeExcelValue(name)}">
+      <Table>
+        ${headerRow}
+        ${bodyRows}
+      </Table>
+      <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+        <DisplayGridlines />
+      </WorksheetOptions>
+    </Worksheet>
+  `
+}
+
+function exportFeeReviewExcel() {
+  const taskName = activeTask.value?.no || selectedListRow.value?.id || '费用核对'
+  const summaryRows = [
+    ...feeReviewItems.value.map((item) => [item.name, formatMoney(item.amount), item.status]),
+    ['合计', formatMoney(feeReviewTotal.value), '']
+  ]
+  const freightRows = [
+    ...freightMaterialRows.value.map((item) => [
+      item.code,
+      item.name,
+      item.planned,
+      formatMoney(item.weight),
+      item.volume.toFixed(4),
+      formatMoney(item.freight)
+    ]),
+    ['合计', '', '', '', '', formatMoney(freightMaterialTotal.value)]
+  ]
+  const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+    <?mso-application progid="Excel.Sheet"?>
+    <Workbook
+      xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+      <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+        <Title>${escapeExcelValue(taskName)} 费用核对导出</Title>
+      </DocumentProperties>
+      <Styles>
+        <Style ss:ID="Header">
+          <Font ss:Bold="1" />
+          <Interior ss:Color="#EEF2F7" ss:Pattern="Solid" />
+          <Borders>
+            <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" />
+            <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" />
+            <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" />
+            <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" />
+          </Borders>
+        </Style>
+      </Styles>
+      ${makeExcelWorksheet('费用核对', ['费用项', '金额', '状态'], summaryRows)}
+      ${makeExcelWorksheet('运费明细', ['物料编码', '名称', '数量', '重量(kg)', '体积(m³)', '运费'], freightRows)}
+    </Workbook>`
+  const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${taskName}-费用核对.xls`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function handleStatementChange(event) {
   const [file] = event.target.files || []
   statementFileName.value = file?.name || ''
@@ -310,11 +571,26 @@ function approveHeadquartersFinance() {
   if (selectedListRow.value) selectedListRow.value.stage = reviewStage.value
 }
 
+function generateBill() {
+  if (reviewStage.value !== '待生成账单') return
+  const confirmed = window.confirm('确认生成账单？生成后将进入物流开票环节。')
+  if (!confirmed) return
+
+  reviewStage.value = '待物流开票'
+  if (selectedListRow.value) selectedListRow.value.stage = reviewStage.value
+}
+
 watch(
   () => props.taskNo,
   (taskNo) => {
     if (!taskNo) return
     createStatement()
+    const status = activeTask.value?.status
+    if (status === '待仓管确认费用') reviewStage.value = '待仓管确认费用'
+    if (status === '待物流确认费用') reviewStage.value = '待物流确认费用'
+    if (status === '待生成账单') reviewStage.value = '待生成账单'
+    if (status === '待物流开票') reviewStage.value = '待物流开票'
+    if (status === '待发票付款') reviewStage.value = '待发票付款'
     if (!isConfirmStatementTask.value) return
     statementFileName.value = `${taskNo}物流对账单.xlsx`
     templateDownloaded.value = true
@@ -327,10 +603,20 @@ watch(
 
 <template>
   <section class="content">
+    <Teleport to="body">
+      <div
+        v-if="freightTooltip.visible"
+        class="freight-tooltip"
+        :class="`is-${freightTooltip.placement}`"
+        :style="{ left: `${freightTooltip.x}px`, top: `${freightTooltip.y}px` }"
+      >
+        {{ freightTooltip.text }}
+      </div>
+    </Teleport>
     <Teleport to=".topbar-actions">
       <button v-if="!isDetail" class="btn primary" type="button" @click="createStatement">新增对账单</button>
-      <button v-else class="btn" type="button" @click="openList">返回列表</button>
-      <button v-if="isCreatingStatement" class="btn primary" type="button" :disabled="!canUpload" @click="submitStatement">提交对账单</button>
+      <button v-if="isCreatingStatement && !isTaskFlow" class="btn primary" type="button" :disabled="!canUpload" @click="submitStatement">提交对账单</button>
+      <button v-if="showGenerateBillButton" class="btn primary" type="button" @click="generateBill">生成账单</button>
     </Teleport>
 
     <template v-if="!isDetail">
@@ -394,56 +680,14 @@ watch(
     <template v-else>
       <section class="page-grid">
         <article class="panel page-hero">
-          <h1>{{ isConfirmStatementTask ? '确认对账单' : isCreatingStatement ? '新增对账单' : '对账单详情' }}</h1>
-          <p class="subline">物流公司确认对账单明细后提交，再由仓管财务和总部财务依次核对。</p>
+          <h1>{{ taskFlowTitle }}</h1>
+          <p class="subline">{{ taskFlowSubtitle }}</p>
         </article>
         <article class="panel metric">
-          <div class="metric-label">交货单数量</div>
-          <div class="metric-value">{{ deliveryNoCount || '-' }}</div>
-          <div class="metric-note">一张对账单可包含多单</div>
-        </article>
-        <article class="panel metric">
-          <div class="metric-label">对账状态</div>
+          <div class="metric-label">费用状态</div>
           <div class="metric-value">{{ reviewStage }}</div>
-          <div class="metric-note">物流上传 / 仓管财务 / 总部财务</div>
+          <div class="metric-note">仓管确认 / 物流确认 / 账单开票付款</div>
         </article>
-      </section>
-
-      <section v-if="isCreatingStatement" class="panel">
-        <div class="section-head">
-          <div class="section-title">{{ isConfirmStatementTask ? '物流公司确认' : '物流公司上传' }}</div>
-          <div class="section-extra">对账单维度确认，解析后关联多个交货单号</div>
-        </div>
-        <div class="reconcile-upload-grid">
-          <div class="statement-upload-flow">
-            <label class="reconcile-remark-field">
-              <span>对账单模板</span>
-              <select v-model="selectedTemplate" class="field">
-                <option value="cbf">车八方省内月度对账单</option>
-              </select>
-            </label>
-            <button class="btn" type="button" @click="downloadTemplate">下载对账单模板</button>
-            <label class="photo-upload-zone statement-upload-zone" :class="{ disabled: !templateDownloaded }">
-              <input type="file" accept=".pdf,.xls,.xlsx,.csv,image/*" :disabled="!templateDownloaded" @change="handleStatementChange" />
-              <span class="upload-icon">+</span>
-              <strong>{{ statementFileName || '上传对账单附件' }}</strong>
-              <small>{{ templateDownloaded ? '支持 PDF、Excel、CSV 或图片凭证' : '请先下载模板，再上传对账单附件' }}</small>
-            </label>
-          </div>
-          <label class="reconcile-remark-field">
-            <span>备注</span>
-            <textarea
-              v-model="statementRemark"
-              class="field remark-field"
-              rows="6"
-              placeholder="填写费用说明、异常情况、扣费原因或需要财务关注的事项"
-            ></textarea>
-          </label>
-        </div>
-        <div class="departure-actions">
-          <span v-if="parsedStatement" class="notice success">已识别 {{ parsedStatement.templateName }}，解析 {{ parsedStatement.rows.length }} 条明细。</span>
-          <span v-else-if="parseError" class="notice danger">{{ parseError }}</span>
-        </div>
       </section>
 
       <section v-if="parsedStatement" class="panel statement-result-panel">
@@ -532,53 +776,175 @@ watch(
         </div>
       </section>
 
-      <section class="panel">
-        <div class="section-head">
-          <div class="section-title">财务核对流程</div>
-          <div class="section-extra">仓管财务核对后流转总部财务核对</div>
-        </div>
-        <div class="reconcile-review-flow">
-          <div class="review-step" :class="{ active: ['待物流上传', '待物流确认'].includes(reviewStage), done: !['待物流上传', '待物流确认'].includes(reviewStage) }">
-            <span>1</span>
-            <strong>{{ isConfirmStatementTask ? '物流确认对账单' : '物流上传对账单' }}</strong>
-            <small>{{ parsedStatement ? '已生成对账单数据' : '待上传附件' }}</small>
+      <section class="panel fee-confirm-panel">
+        <div class="fee-confirm-grid" :class="{ 'single-column': !showFeeAdjustment }">
+          <div class="fee-review-card">
+            <div class="section-head">
+              <div class="section-title-actions">
+                <div class="section-title">费用核对</div>
+                <button class="btn mini" type="button" @click="exportFeeReviewExcel">导出Excel</button>
+              </div>
+              <div class="statement-total">
+                <span>核对费用合计</span>
+                <strong>{{ formatMoney(feeReviewTotal) }}</strong>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>费用项</th>
+                    <th>金额</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="item in feeReviewItems" :key="item.name">
+                    <tr>
+                      <td>{{ item.name }}</td>
+                      <td class="money">{{ formatMoney(item.amount) }}</td>
+                      <td>
+                        <button v-if="item.name === '运费'" class="btn table-action" type="button" @click="freightDetailOpen = !freightDetailOpen">
+                          {{ freightDetailOpen ? '收起明细' : '查看明细' }}
+                        </button>
+                        <span v-else>-</span>
+                      </td>
+                    </tr>
+                    <tr v-if="item.name === '运费' && freightDetailOpen" class="fee-detail-row">
+                      <td colspan="3">
+                        <div class="table-wrap fee-detail-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>物料编码</th>
+                                <th>名称</th>
+                                <th>数量</th>
+                                <th>重量(kg)</th>
+                                <th>体积(m³)</th>
+                                <th>
+                                  <span class="freight-cell">
+                                    运费
+                                    <span
+                                      class="freight-help"
+                                      tabindex="0"
+                                      :title="freightDetailTooltip"
+                                      :data-tooltip="freightDetailTooltip"
+                                      aria-label="查看运费计算逻辑"
+                                      @pointerenter="positionFreightTooltip"
+                                      @mouseenter="positionFreightTooltip"
+                                      @mouseleave="hideFreightTooltip"
+                                      @focus="positionFreightTooltip"
+                                      @blur="hideFreightTooltip"
+                                    >?</span>
+                                  </span>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="detail in freightMaterialRows" :key="detail.code">
+                                <td>{{ detail.code }}</td>
+                                <td>{{ detail.name }}</td>
+                                <td>{{ detail.planned }}</td>
+                                <td>{{ formatMoney(detail.weight) }}</td>
+                                <td>{{ detail.volume.toFixed(4) }}</td>
+                                <td class="money">{{ formatMoney(detail.freight) }}</td>
+                              </tr>
+                            </tbody>
+                            <tfoot>
+                              <tr>
+                                <td>合计</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="money">{{ formatMoney(freightMaterialTotal) }}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="review-step" :class="{ active: reviewStage === '待仓管财务核对', done: ['待总部财务核对', '已完成'].includes(reviewStage) }">
-            <span>2</span>
-            <strong>仓管财务核对</strong>
-            <small>核对费用项、交货单号、附件和备注</small>
-          </div>
-          <div class="review-step" :class="{ active: reviewStage === '待总部财务核对', done: reviewStage === '已完成' }">
-            <span>3</span>
-            <strong>总部财务核对</strong>
-            <small>最终复核并完成对账</small>
+          <div v-if="showFeeAdjustment" class="fee-adjust-card">
+            <div class="section-head">
+              <div class="section-title">费用调整</div>
+            </div>
+            <div class="fee-adjust-form">
+              <div class="fee-adjust-list">
+                <div v-for="(row, index) in feeAdjustmentRows" :key="row.id" class="fee-adjust-row">
+                  <div class="fee-adjust-row-head">
+                    <strong>调整项 {{ index + 1 }}</strong>
+                    <button class="btn mini fee-row-remove" type="button" :disabled="feeAdjustmentRows.length === 1" @click="removeFeeAdjustmentRow(row.id)">移除</button>
+                  </div>
+                  <label class="reconcile-remark-field">
+                    <span>调整费用项 <b class="required">*</b></span>
+                    <select v-model="row.itemName" class="field" required>
+                      <option v-for="item in feeReviewItems" :key="item.name" :value="item.name">{{ item.name }}</option>
+                    </select>
+                  </label>
+                  <label class="reconcile-remark-field">
+                    <span>调整后金额 <b class="required">*</b></span>
+                    <input v-model="row.amount" class="field" type="number" min="0" step="0.01" required placeholder="输入调整后金额" />
+                  </label>
+                  <label class="reconcile-remark-field fee-adjust-reason">
+                    <span>调整原因 <b class="required">*</b></span>
+                    <textarea v-model="row.reason" class="field remark-field" rows="2" required placeholder="填写调整原因"></textarea>
+                  </label>
+                  <label class="reconcile-remark-field fee-adjust-attachment">
+                    <span>调整附件</span>
+                    <input class="field" type="file" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx" @change="handleAdjustmentAttachmentChange(row, $event)" />
+                    <small>{{ row.attachmentName || '支持上传费用凭证、沟通记录或审批附件' }}</small>
+                  </label>
+                </div>
+              </div>
+              <button class="btn fee-add-row" type="button" @click="addFeeAdjustmentRow">新增调整项</button>
+              <button class="btn primary fee-adjust-submit" type="button" @click="submitFeeAdjustments">提交调整</button>
+            </div>
           </div>
         </div>
-        <div class="departure-actions">
-          <button class="btn" type="button" :disabled="reviewStage !== '待仓管财务核对'" @click="approveWarehouseFinance">
-            仓管财务核对通过
-          </button>
-          <button class="btn primary" type="button" :disabled="reviewStage !== '待总部财务核对'" @click="approveHeadquartersFinance">
-            总部财务核对通过
-          </button>
-        </div>
-        <div class="table-wrap">
+        <div class="fee-history-section">
+          <div class="section-head">
+            <div class="section-title">费用核对记录</div>
+          </div>
+          <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>时间</th>
+                <th>核对类型</th>
                 <th>费用项</th>
-                <th>金额</th>
-                <th>状态</th>
+                <th>调整前</th>
+                <th>调整后</th>
+                <th>操作人</th>
+                <th>原因</th>
+                <th>附件</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in feeItems" :key="item.name">
-                <td>{{ item.name }}</td>
-                <td class="money">{{ item.amount }}</td>
-                <td>{{ item.status }}</td>
+              <tr v-for="record in feeAdjustmentHistory" :key="`${record.time}-${record.itemName}-${record.after}`">
+                <td>{{ record.time }}</td>
+                <td>{{ record.reviewType || '仓管确认费用' }}</td>
+                <td>{{ record.itemName }}</td>
+                <td class="money">{{ formatMoney(record.before) }}</td>
+                <td class="money">{{ formatMoney(record.after) }}</td>
+                <td>{{ record.operator }}</td>
+                <td>{{ record.reason }}</td>
+                <td>
+                  <div v-if="record.attachmentName && record.attachmentName !== '无'" class="attachment-actions">
+                    <span>{{ record.attachmentName }}</span>
+                    <button class="btn mini" type="button" @click="viewAttachment(record.attachmentName)">查看</button>
+                    <button class="btn mini" type="button" @click="downloadAttachment(record.attachmentName)">下载</button>
+                  </div>
+                  <span v-else>-</span>
+                </td>
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </template>

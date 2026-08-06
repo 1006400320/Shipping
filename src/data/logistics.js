@@ -141,7 +141,7 @@ export const shipmentTasks = [
     receiverCompany: '上海第一分公司',
     carrier: '跨越速运',
     currentNode: '封箱',
-    status: '待封箱贴单',
+    status: '待封配件箱',
     priority: '普通',
     plannedDate: '2026-02-15',
     progress: { done: 20, total: 22 },
@@ -300,13 +300,13 @@ export const shipmentTasks = [
     salesOrderNo: '1033001',
     receiverCompany: '上海第一分公司',
     carrier: '德邦物流',
-    currentNode: '确认对账单',
-    status: '确认对账单',
+    currentNode: '仓管确认费用',
+    status: '待仓管确认费用',
     priority: '普通',
     plannedDate: '2026-02-25',
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
-    feeStatus: '确认对账单',
+    feeStatus: '待仓管确认费用',
     tone: 'neutral'
   },
   {
@@ -323,13 +323,13 @@ export const shipmentTasks = [
     salesOrderNo: '1033001',
     receiverCompany: '上海第一分公司',
     carrier: '跨越速运',
-    currentNode: '财务对账',
-    status: '待财务对账',
+    currentNode: '物流确认费用',
+    status: '待物流确认费用',
     priority: '普通',
     plannedDate: '2026-02-25',
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
-    feeStatus: '待财务对账',
+    feeStatus: '待物流确认费用',
     tone: 'neutral'
   },
   {
@@ -392,13 +392,13 @@ export const shipmentTasks = [
     salesOrderNo: '1033001',
     receiverCompany: '上海第一分公司',
     carrier: '顺丰速运',
-    currentNode: '仓管对账',
-    status: '待仓管对账',
+    currentNode: '仓管确认费用',
+    status: '待仓管确认费用',
     priority: '普通',
     plannedDate: '2026-02-25',
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
-    feeStatus: '待仓管对账',
+    feeStatus: '待仓管确认费用',
     tone: 'green'
   },
   {
@@ -415,13 +415,13 @@ export const shipmentTasks = [
     salesOrderNo: '1033001',
     receiverCompany: '上海第一分公司',
     carrier: '德邦物流',
-    currentNode: '仓管对账',
-    status: '待仓管对账',
+    currentNode: '生成账单',
+    status: '待生成账单',
     priority: '普通',
     plannedDate: '2026-02-25',
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
-    feeStatus: '待仓管对账',
+    feeStatus: '待生成账单',
     tone: 'amber'
   },
   {
@@ -438,13 +438,13 @@ export const shipmentTasks = [
     salesOrderNo: '1033001',
     receiverCompany: '上海第一分公司',
     carrier: '跨越速运',
-    currentNode: '财务对账',
-    status: '待财务对账',
+    currentNode: '物流开票',
+    status: '待物流开票',
     priority: '普通',
     plannedDate: '2026-02-25',
     progress: { done: 12, total: 12 },
     boxes: { total: 2, sealed: 2, active: 0 },
-    feeStatus: '待财务对账',
+    feeStatus: '待物流开票',
     tone: 'neutral'
   },
   {
@@ -569,6 +569,42 @@ export const materials = [
     lengthMm: 430,
     widthMm: 180,
     heightMm: 90
+  },
+  {
+    code: 'MAT-G4021',
+    name: '整机底座',
+    planned: 1,
+    picked: 1,
+    checked: 1,
+    packed: 1,
+    box: '托盘-01',
+    status: '完成',
+    tone: 'ok',
+    large: false
+  },
+  {
+    code: 'MAT-S5108',
+    name: '不锈钢侧板',
+    planned: 2,
+    picked: 2,
+    checked: 2,
+    packed: 2,
+    box: '托盘-01',
+    status: '完成',
+    tone: 'ok',
+    large: false
+  },
+  {
+    code: 'MAT-M6205',
+    name: '电机驱动模块',
+    planned: 2,
+    picked: 2,
+    checked: 2,
+    packed: 2,
+    box: '周转箱-02',
+    status: '完成',
+    tone: 'ok',
+    large: false
   }
 ]
 
